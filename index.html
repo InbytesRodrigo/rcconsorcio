@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RF Consórcio - Alto Padrão</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rf: {
+                            red: '#b91c1c', // red-700
+                            dark: '#0f172a', // slate-900
+                            light: '#f8fafc', // slate-50
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons (Premium Icons) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- FIREBASE SETUP (Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+        // Sua configuração (Será usada no Netlify)
+        const myFirebaseConfig = {
+            apiKey: "AIzaSyDp9WFzPuRdDc9zbqlJN_l0S6ZMi0LKiYI",
+            authDomain: "rfconsorcio.firebaseapp.com",
+            projectId: "rfconsorcio",
+            storageBucket: "rfconsorcio.firebasestorage.app",
+            messagingSenderId: "490627588695",
+            appId: "1:490627588695:web:0e4225684a27df737ff912",
+            measurementId: "G-70X47ZPPDR"
+        };
+
+        // Detecta se está no ambiente de visualização ou no seu domínio (Netlify)
+        const isPreviewEnv = typeof __firebase_config !== 'undefined';
+        const firebaseConfig = isPreviewEnv ? JSON.parse(__firebase_config) : myFirebaseConfig;
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Expondo para o React usar
+        window.db = db;
+        window.auth = auth;
+        window.fb = { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, setDoc, onSnapshot };
+        window.fbAuth = { signInAnonymously, onAuthStateChanged, signInWithCustomToken };
+        
+        // Avisa o React que o Firebase carregou
+        window.dispatchEvent(new Event('firebase-ready'));
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        /* Range slider styling */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #0f172a; cursor: pointer; margin-top: -8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); border: 2px solid #fff; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #e2e8f0; border-radius: 4px; }
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #b91c1c; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- UTILIDADES ---
+        const formatCurrency = (value) => {
+            if (!value) return 'R$ 0,00';
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        };
+
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            if (file.size > 1048576) { // 1MB limite
+                alert("A imagem é muito grande. Escolha uma imagem de até 1MB.");
+                reject("Arquivo muito grande");
+                return;
+            }
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        const initialSettings = {
+            adminPhone: '5511999999999',
+            companyName: 'RF Consórcio',
+            cnpj: '00.000.000/0001-00',
+            heroTitle: 'O poder de compra que você precisa, com a segurança que você merece.',
+            heroSubtitle: 'Simule agora seu crédito para imóveis ou veículos com as taxas mais competitivas do mercado premium.',
+            aboutText: 'A RF Consórcio é especialista em cartas contempladas de alto padrão. Garantimos transparência, agilidade e segurança jurídica em todas as negociações para a realização do seu patrimônio.',
+            mainLogo: null,
+            heroImage: null,
+            partnerLogos: [],
+            funnelMinCredit: 200000,
+            funnelMaxCredit: 6000000,
+            funnelMinInstallment: 1000,
+            funnelMaxInstallment: 50000
+        };
+
+        // --- COMPONENTE PRINCIPAL ---
+        function App() {
+            const [firebaseReady, setFirebaseReady] = useState(!!window.db);
+            const [user, setUser] = useState(null);
+            const [firebaseError, setFirebaseError] = useState(null);
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [adminAuth, setAdminAuth] = useState(false);
+            
+            const [letters, setLetters] = useState([]);
+            const [leads, setLeads] = useState([]);
+            const [settings, setSettings] = useState(initialSettings);
+            const [loadingData, setLoadingData] = useState(true);
+
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'rf-consorcio-default';
+
+            useEffect(() => {
+                const handleReady = () => setFirebaseReady(true);
+                window.addEventListener('firebase-ready', handleReady);
+                return () => window.removeEventListener('firebase-ready', handleReady);
+            }, []);
+
+            // Iniciar Autenticação do Firebase
+            useEffect(() => {
+                if (!firebaseReady) return;
+                
+                const initAuth = async () => {
+                    try {
+                        const isPreviewEnv = typeof __firebase_config !== 'undefined';
+                        
+                        if (isPreviewEnv && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await window.fbAuth.signInWithCustomToken(window.auth, __initial_auth_token);
+                        } else {
+                            await window.fbAuth.signInAnonymously(window.auth);
+                        }
+                    } catch (error) {
+                        console.error("Erro na autenticação:", error);
+                    }
+                };
+                
+                initAuth();
+
+                const unsubscribe = window.fbAuth.onAuthStateChanged(window.auth, setUser);
+
+                return () => unsubscribe();
+            }, [firebaseReady]);
+
+            // Carregar Dados do Firestore (Somente após autenticado)
+            useEffect(() => {
+                if (!firebaseReady || !user) return;
+
+                const db = window.db;
+                const { collection, onSnapshot, doc, setDoc } = window.fb;
+
+                // Paths seguros
+                const settingsRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global');
+                const lettersRef = collection(db, 'artifacts', appId, 'public', 'data', 'letters');
+                const leadsRef = collection(db, 'artifacts', appId, 'public', 'data', 'leads');
+
+                const handleError = (error, context) => {
+                    console.error(`Erro ao ler ${context}:`, error);
+                    if (error.code === 'permission-denied') {
+                        setFirebaseError("O Firebase está bloqueando o acesso por segurança.\n\nPara funcionar no seu domínio (Netlify), acesse o painel do Firebase > Firestore Database > aba 'Regras' e cole o seguinte código:\n\nmatch /{document=**} {\n  allow read, write: if true;\n}");
+                    }
+                    setLoadingData(false);
+                };
+
+                // 1. Ouvir Configurações
+                const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        setSettings(docSnap.data());
+                    } else {
+                        setDoc(settingsRef, initialSettings).catch(e => console.log("Erro ao inicializar settings", e));
+                    }
+                }, (error) => handleError(error, 'settings'));
+
+                // 2. Ouvir Cartas
+                const unsubLetters = onSnapshot(lettersRef, (snapshot) => {
+                    const lettersData = [];
+                    snapshot.forEach((doc) => lettersData.push({ id: doc.id, ...doc.data() }));
+                    lettersData.sort((a, b) => b.credit - a.credit);
+                    setLetters(lettersData);
+                }, (error) => handleError(error, 'cartas'));
+
+                // 3. Ouvir Leads
+                const unsubLeads = onSnapshot(leadsRef, (snapshot) => {
+                    const leadsData = [];
+                    snapshot.forEach((doc) => leadsData.push({ id: doc.id, ...doc.data() }));
+                    leadsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    setLeads(leadsData);
+                    setLoadingData(false);
+                }, (error) => handleError(error, 'leads'));
+
+                return () => {
+                    unsubSettings();
+                    unsubLetters();
+                    unsubLeads();
+                };
+            }, [firebaseReady, user]);
+
+            // Funções de Banco de Dados com caminhos seguros
+            const handleAddLead = async (leadData) => {
+                if (!firebaseReady || !user) return;
+                try {
+                    await window.fb.addDoc(window.fb.collection(window.db, 'artifacts', appId, 'public', 'data', 'leads'), leadData);
+                } catch (e) { console.error("Erro ao salvar lead", e); }
+            };
+
+            const handleSaveSettings = async (newSettings) => {
+                if (!firebaseReady || !user) return;
+                try {
+                    await window.fb.setDoc(window.fb.doc(window.db, 'artifacts', appId, 'public', 'data', 'settings', 'global'), newSettings);
+                } catch (e) { console.error("Erro ao salvar configs", e); }
+            };
+
+            const handleAddLetter = async (letterData) => {
+                if (!firebaseReady || !user) return;
+                try {
+                    await window.fb.addDoc(window.fb.collection(window.db, 'artifacts', appId, 'public', 'data', 'letters'), letterData);
+                } catch (e) { console.error("Erro ao salvar carta", e); }
+            };
+
+            const handleDeleteLetter = async (id) => {
+                if (!firebaseReady || !user) return;
+                try {
+                    await window.fb.deleteDoc(window.fb.doc(window.db, 'artifacts', appId, 'public', 'data', 'letters', id));
+                } catch (e) { console.error("Erro ao deletar carta", e); }
+            };
+
+            // Tela de Erro de Permissão do Firebase
+            if (firebaseError) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+                        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-8 max-w-lg w-full text-center">
+                            <i className="ph ph-warning-circle text-5xl text-rf-red mb-4 inline-block"></i>
+                            <h2 className="text-xl font-semibold text-slate-900 mb-4">Ação Necessária no Firebase</h2>
+                            <p className="text-slate-600 text-sm mb-6 text-left whitespace-pre-wrap bg-slate-50 p-4 rounded border border-slate-200 font-mono leading-relaxed">
+                                {firebaseError}
+                            </p>
+                            <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded font-medium hover:bg-slate-800 transition">
+                                Já atualizei as regras, recarregar site
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!firebaseReady || loadingData) {
+                return <div className="min-h-screen flex items-center justify-center bg-slate-50 flex-col gap-4">
+                    <div className="loader"></div>
+                    <p className="text-slate-500 text-sm font-medium">Conectando ao banco de dados...</p>
+                </div>;
+            }
+
+            if (isAdmin) {
+                if (!adminAuth) return <AdminLogin onLogin={() => setAdminAuth(true)} onBack={() => setIsAdmin(false)} />;
+                return <AdminPanel 
+                    letters={letters} 
+                    onAddLetter={handleAddLetter}
+                    onDeleteLetter={handleDeleteLetter}
+                    leads={leads} 
+                    settings={settings} 
+                    onSaveSettings={handleSaveSettings} 
+                    onLogout={() => { setAdminAuth(false); setIsAdmin(false); }} 
+                />;
+            }
+
+            return <ClientInterface letters={letters} settings={settings} addLead={handleAddLead} onAdminClick={() => setIsAdmin(true)} />;
+        }
+
+        // ==========================================
+        // 1. INTERFACE DO CLIENTE (FRONTEND PREMIUM)
+        // ==========================================
+        function ClientInterface({ letters, settings, addLead, onAdminClick }) {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [categoryFilter, setCategoryFilter] = useState('Todas');
+            const [selectedLetter, setSelectedLetter] = useState(null);
+
+            const filteredLetters = letters.filter(l => {
+                const matchSearch = l.code.includes(searchTerm) || l.category.toLowerCase().includes(searchTerm.toLowerCase()) || l.adm.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchCategory = categoryFilter === 'Todas' || l.category === categoryFilter;
+                return matchSearch && matchCategory;
+            });
+
+            return (
+                <div className="min-h-screen flex flex-col font-sans">
+                    {/* Header Minimalista */}
+                    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all">
+                        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                {settings.mainLogo ? (
+                                    <img src={settings.mainLogo} alt="Logo" className="h-10 object-contain" />
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <i className="ph ph-buildings text-2xl text-rf-red"></i>
+                                        <span className="text-xl font-semibold tracking-tight text-slate-900 uppercase">
+                                            {settings.companyName.split(' ')[0]} <span className="text-rf-red font-light">{settings.companyName.split(' ').slice(1).join(' ')}</span>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="hidden md:flex items-center gap-8">
+                                <a href="#simulador" className="text-sm font-medium text-slate-600 hover:text-rf-red transition-colors">Oportunidades</a>
+                                <a href="#sobre" className="text-sm font-medium text-slate-600 hover:text-rf-red transition-colors">A Empresa</a>
+                                <a href={`https://wa.me/${settings.adminPhone}`} target="_blank" rel="noreferrer" 
+                                className="bg-rf-red text-white px-5 py-2.5 rounded text-sm font-medium hover:bg-red-800 transition-colors flex items-center gap-2 shadow-sm">
+                                    <i className="ph ph-whatsapp-logo text-lg"></i> Fale Conosco
+                                </a>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Hero Section */}
+                    <section className="relative bg-rf-dark text-white pt-20 pb-28 overflow-hidden">
+                        {settings.heroImage && (
+                            <div className="absolute inset-0 z-0 opacity-10">
+                                <img src={settings.heroImage} alt="Fundo" className="w-full h-full object-cover filter grayscale" />
+                            </div>
+                        )}
+                        <div className="max-w-7xl mx-auto px-6 relative z-10">
+                            <div className="grid lg:grid-cols-2 gap-16 items-center">
+                                {/* Textos */}
+                                <div className="text-center lg:text-left">
+                                    <h1 className="text-4xl md:text-5xl font-semibold mb-6 leading-tight text-white tracking-tight">
+                                        {settings.heroTitle}
+                                    </h1>
+                                    <p className="text-lg text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
+                                        {settings.heroSubtitle}
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
+                                        <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                                            <i className="ph ph-medal text-xl text-rf-red"></i> Especialistas em Alto Padrão
+                                        </div>
+                                        <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                                            <i className="ph ph-shield-check text-xl text-rf-red"></i> Negociação Segura
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Funil de Simulação */}
+                                <div className="w-full max-w-md mx-auto lg:ml-auto">
+                                    <SimulatorFunnel settings={settings} onSubmit={(data) => addLead({...data, type: 'Funil', timestamp: new Date().toISOString()})} />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Tabela de Cartas */}
+                    <section id="simulador" className="py-24 max-w-7xl mx-auto px-6 w-full flex-1">
+                        <div className="mb-12 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 pb-6">
+                            <div>
+                                <h2 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">Oportunidades Disponíveis</h2>
+                                <p className="text-slate-500 font-light text-lg">Selecione a cota ideal para o seu momento financeiro.</p>
+                            </div>
+                            
+                            {/* Filtros Clean */}
+                            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                                <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
+                                    {['Todas', 'Imóvel', 'Veículo'].map(cat => (
+                                        <button 
+                                            key={cat} onClick={() => setCategoryFilter(cat)}
+                                            className={`px-5 py-2 rounded text-sm font-medium transition-colors ${categoryFilter === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="relative">
+                                    <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
+                                    <input 
+                                        type="text" placeholder="Buscar código ou banco..." 
+                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-sm focus:border-slate-400 outline-none transition-colors"
+                                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabela */}
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse min-w-[800px]">
+                                    <thead>
+                                        <tr className="text-xs uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200">
+                                            <th className="px-6 py-5 font-medium">Administradora</th>
+                                            <th className="px-6 py-5 font-medium">Cota</th>
+                                            <th className="px-6 py-5 font-medium">Crédito</th>
+                                            <th className="px-6 py-5 font-medium">Entrada</th>
+                                            <th className="px-6 py-5 font-medium">Parcelas</th>
+                                            <th className="px-6 py-5 font-medium">Status</th>
+                                            <th className="px-6 py-5 font-medium text-right">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {filteredLetters.length === 0 ? (
+                                            <tr><td colSpan="7" className="text-center py-16 text-slate-500 font-light">Nenhuma carta encontrada com estes filtros.</td></tr>
+                                        ) : (
+                                            filteredLetters.map((letter) => (
+                                                <tr key={letter.id} className="hover:bg-slate-50 transition-colors group">
+                                                    <td className="px-6 py-4">
+                                                        {letter.bankLogo ? 
+                                                            <img src={letter.bankLogo} alt="Banco" className="h-8 w-auto object-contain mix-blend-multiply" /> : 
+                                                            <span className="font-semibold text-slate-700">{letter.adm}</span>
+                                                        }
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-sm font-semibold text-slate-900">{letter.code}</p>
+                                                        <p className="text-xs text-slate-500">{letter.category}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-lg font-semibold text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-sm text-slate-600 font-medium">{formatCurrency(letter.entry)}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <p className="text-sm font-semibold text-slate-800">{letter.term}x {formatCurrency(letter.installment)}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[11px] font-semibold uppercase tracking-wider ${letter.status === 'Disponível' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                                                            {letter.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button 
+                                                            onClick={() => setSelectedLetter(letter)}
+                                                            className="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded text-sm font-medium transition-colors inline-flex items-center gap-2 shadow-sm whitespace-nowrap"
+                                                        >
+                                                            <i className="ph ph-whatsapp-logo text-lg"></i> Saber mais agora
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Footer com Admin */}
+                    <footer id="sobre" className="bg-white border-t border-slate-200 pt-16 pb-8">
+                        <div className="max-w-7xl mx-auto px-6">
+                            <div className="grid md:grid-cols-12 gap-12 mb-12">
+                                <div className="md:col-span-5">
+                                    <div className="mb-6">
+                                        {settings.mainLogo ? (
+                                            <img src={settings.mainLogo} alt="Logo" className="h-8 object-contain grayscale opacity-60" />
+                                        ) : (
+                                            <span className="text-lg font-semibold text-slate-900 uppercase tracking-wide">{settings.companyName}</span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm leading-relaxed mb-4 text-slate-500 font-light pr-8">
+                                        {settings.aboutText}
+                                    </p>
+                                    <p className="text-xs text-slate-400 font-medium">CNPJ: {settings.cnpj}</p>
+                                </div>
+                                
+                                <div className="md:col-span-4">
+                                    <h3 className="text-slate-900 text-xs font-semibold mb-6 uppercase tracking-widest">Bancos Parceiros</h3>
+                                    {settings.partnerLogos && settings.partnerLogos.length > 0 ? (
+                                        <div className="flex flex-wrap gap-4">
+                                            {settings.partnerLogos.map((logo, i) => (
+                                                <div key={i} className="h-10 w-20 flex items-center justify-start opacity-50 grayscale">
+                                                    <img src={logo} alt="Parceiro" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-slate-500 font-light">Atuamos com as maiores e mais seguras administradoras do Brasil.</p>
+                                    )}
+                                </div>
+                                
+                                <div className="md:col-span-3">
+                                    <h3 className="text-slate-900 text-xs font-semibold mb-6 uppercase tracking-widest">Atendimento</h3>
+                                    <a href={`https://wa.me/${settings.adminPhone}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-slate-600 hover:text-rf-red transition-colors mb-4 text-sm font-medium">
+                                        <i className="ph ph-whatsapp-logo text-lg"></i> {settings.adminPhone}
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
+                                <p>&copy; {new Date().getFullYear()} {settings.companyName}. Todos os direitos reservados.</p>
+                                <button onClick={onAdminClick} className="mt-4 md:mt-0 hover:text-slate-700 transition-colors flex items-center gap-1.5" title="Acesso Administrativo">
+                                    <i className="ph ph-lock-key text-sm"></i> Admin
+                                </button>
+                            </div>
+                        </div>
+                    </footer>
+
+                    {/* Modal de Lead */}
+                    {selectedLetter && (
+                        <LeadCaptureModal 
+                            letter={selectedLetter} adminPhone={settings.adminPhone}
+                            onClose={() => setSelectedLetter(null)} 
+                            onSubmit={(leadData) => addLead({ ...leadData, type: 'Carta', letterId: selectedLetter.code, interestedCredit: selectedLetter.credit, timestamp: new Date().toISOString() })}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        // ==========================================
+        // COMPONENTE: FUNIL DE SIMULAÇÃO 
+        // ==========================================
+        function SimulatorFunnel({ settings, onSubmit }) {
+            const minC = Number(settings.funnelMinCredit || 200000);
+            const maxC = Number(settings.funnelMaxCredit || 6000000);
+            const minI = Number(settings.funnelMinInstallment || 1000);
+            const maxI = Number(settings.funnelMaxInstallment || 50000);
+            const adminPhone = settings.adminPhone;
+
+            const [step, setStep] = useState(1);
+            const [credit, setCredit] = useState(minC + (maxC - minC) / 2);
+            const [installment, setInstallment] = useState(minI + (maxI - minI) / 2); 
+            const [name, setName] = useState('');
+            const [phone, setPhone] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleFinish = (e) => {
+                e.preventDefault();
+                setLoading(true);
+                onSubmit({ name, phone, desiredCredit: credit, desiredInstallment: installment });
+                
+                const msg = `*SIMULAÇÃO PREMIUM*\n\nOlá, sou *${name}* e realizei uma simulação no site.\n\n🎯 *Meu Interesse:*\n- Crédito: *${formatCurrency(credit)}*\n- Parcela: *${formatCurrency(installment)}*\n\nAguardo as opções disponíveis. Contato: ${phone}.`;
+                setTimeout(() => {
+                    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    setLoading(false); setStep(4);
+                }, 800);
+            };
+
+            return (
+                <div className="bg-white rounded-xl shadow-xl p-8 relative overflow-hidden border border-slate-100">
+                    {step < 4 && (
+                        <div className="flex gap-2 mb-8">
+                            {[1,2,3].map(i => <div key={i} className={`h-1 flex-1 rounded-full ${step >= i ? 'bg-rf-red' : 'bg-slate-100'}`}></div>)}
+                        </div>
+                    )}
+
+                    {step === 1 && (
+                        <div className="animate-in fade-in duration-300">
+                            <h3 className="text-xl font-semibold text-slate-900 mb-1">Valor do Crédito</h3>
+                            <p className="text-slate-500 text-sm mb-8 font-light">Defina o montante desejado.</p>
+                            <div className="mb-8 text-center"><span className="text-4xl font-semibold text-slate-900 tracking-tight">{formatCurrency(credit)}</span></div>
+                            <input type="range" min={minC} max={maxC} step="5000" value={credit} onChange={(e) => setCredit(Number(e.target.value))} className="w-full mb-6" />
+                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-medium"><span>{formatCurrency(minC)}</span><span>{formatCurrency(maxC)}</span></div>
+                            <button onClick={() => setStep(2)} className="w-full bg-slate-900 text-white font-medium py-3.5 rounded hover:bg-slate-800 transition-colors">Continuar</button>
+                        </div>
+                    )}
+
+                    {step === 2 && (
+                        <div className="animate-in fade-in duration-300">
+                            <div className="flex items-center gap-2 mb-1">
+                                <button onClick={()=>setStep(1)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-lg"></i></button>
+                                <h3 className="text-xl font-semibold text-slate-900">Parcela Mensal</h3>
+                            </div>
+                            <p className="text-slate-500 text-sm mb-8 font-light ml-7">Adapte ao seu planejamento.</p>
+                            <div className="mb-8 text-center"><span className="text-4xl font-semibold text-slate-900 tracking-tight">{formatCurrency(installment)}</span></div>
+                            <input type="range" min={minI} max={maxI} step="100" value={installment} onChange={(e) => setInstallment(Number(e.target.value))} className="w-full mb-6" />
+                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-medium"><span>{formatCurrency(minI)}</span><span>{formatCurrency(maxI)}</span></div>
+                            <button onClick={() => setStep(3)} className="w-full bg-slate-900 text-white font-medium py-3.5 rounded hover:bg-slate-800 transition-colors">Avançar</button>
+                        </div>
+                    )}
+
+                    {step === 3 && (
+                        <div className="animate-in fade-in duration-300">
+                            <div className="flex items-center gap-2 mb-6">
+                                <button onClick={()=>setStep(2)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-lg"></i></button>
+                                <h3 className="text-xl font-semibold text-slate-900">Contato</h3>
+                            </div>
+                            <form onSubmit={handleFinish} className="space-y-4">
+                                <input required type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="Nome completo" />
+                                <input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="WhatsApp" />
+                                <button type="submit" disabled={loading} className="w-full bg-[#128C7E] hover:bg-[#075E54] text-white font-medium py-3.5 rounded transition-colors flex items-center justify-center gap-2 mt-4 shadow-sm">
+                                    <i className="ph ph-whatsapp-logo text-lg"></i> {loading ? 'Aguarde...' : 'Receber Opções'}
+                                </button>
+                            </form>
+                            <p className="text-xs text-center text-slate-400 mt-4 flex items-center justify-center gap-1"><i className="ph ph-lock-key"></i> Dados sigilosos protegidos.</p>
+                        </div>
+                    )}
+
+                    {step === 4 && (
+                        <div className="text-center py-6 animate-in fade-in duration-300">
+                            <i className="ph ph-check-circle text-5xl text-emerald-600 mb-4 inline-block"></i>
+                            <h3 className="text-xl font-semibold text-slate-900 mb-2">Simulação Enviada!</h3>
+                            <p className="text-slate-500 text-sm mb-8 font-light">Seu consultor iniciará o atendimento via WhatsApp.</p>
+                            <button onClick={() => { setStep(1); setName(''); setPhone(''); }} className="text-slate-400 text-sm hover:text-slate-900">Nova Simulação</button>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // ==========================================
+        // MODAL DA TABELA
+        // ==========================================
+        function LeadCaptureModal({ letter, adminPhone, onClose, onSubmit }) {
+            const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [submitting, setSubmitting] = useState(false);
+            const handleSubmit = (e) => {
+                e.preventDefault(); setSubmitting(true); onSubmit({ name, phone });
+                const msg = `Olá, sou *${name}*.\nTenho interesse na *Cota ${letter.code}*.\n- Crédito: ${formatCurrency(letter.credit)}\n- Entrada: ${formatCurrency(letter.entry)}\n- Parcela: ${letter.term}x de ${formatCurrency(letter.installment)}\n\nMeu WhatsApp: ${phone}.`;
+                window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                onClose();
+            };
+            return (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100">
+                            <h3 className="font-semibold text-slate-900 flex items-center gap-2"><i className="ph ph-info"></i> Detalhes da Cota</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-900"><i className="ph ph-x text-lg"></i></button>
+                        </div>
+                        <div className="p-6 text-center">
+                            <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-medium">Crédito</p>
+                            <p className="text-3xl font-semibold text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
+                            <p className="text-sm text-slate-500 mt-2 font-medium">Cota {letter.code} • {letter.term}x {formatCurrency(letter.installment)}</p>
+                            
+                            <form onSubmit={handleSubmit} className="mt-8 space-y-3">
+                                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu nome" />
+                                <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu WhatsApp" />
+                                <button type="submit" disabled={submitting} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded flex items-center justify-center gap-2 mt-2 transition-colors">
+                                    {submitting ? 'Enviando...' : 'Falar com Consultor'} <i className="ph ph-arrow-right"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // ==========================================
+        // PAINEL ADMINISTRATIVO 
+        // ==========================================
+        function AdminLogin({ onLogin, onBack }) {
+            const [pwd, setPwd] = useState('');
+            const handleLogin = (e) => { e.preventDefault(); pwd === '123' ? onLogin() : alert('Senha incorreta!'); };
+            return (
+                <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                    <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 w-full max-w-sm relative text-center">
+                        <button onClick={onBack} className="absolute top-4 left-4 text-slate-400 hover:text-slate-600"><i className="ph ph-arrow-left text-xl"></i></button>
+                        <i className="ph ph-lock-key text-4xl text-slate-400 mb-4 inline-block"></i>
+                        <h2 className="text-xl font-semibold text-slate-900 mb-6">Acesso Administrativo</h2>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <input type="password" placeholder="Senha" value={pwd} onChange={e=>setPwd(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded text-center text-lg tracking-widest outline-none focus:border-slate-400" />
+                            <button type="submit" className="w-full bg-slate-900 text-white font-medium py-3 rounded hover:bg-slate-800 transition-colors">Entrar</button>
+                        </form>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminPanel({ letters, onAddLetter, onDeleteLetter, leads, settings, onSaveSettings, onLogout }) {
+            const [activeTab, setActiveTab] = useState('leads');
+            return (
+                <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+                    <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col">
+                        <div className="p-6 border-b border-slate-100">
+                            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                <i className="ph ph-gear text-lg"></i> Gestão RF
+                            </h2>
+                        </div>
+                        <nav className="flex-1 p-4 space-y-1">
+                            <button onClick={() => setActiveTab('leads')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'leads' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-users text-lg"></i> Relatórios (Leads)</button>
+                            <button onClick={() => setActiveTab('cartas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'cartas' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-list-bullets text-lg"></i> Banco de Cartas</button>
+                            <button onClick={() => setActiveTab('config')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'config' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-pencil-simple text-lg"></i> Site & Config.</button>
+                        </nav>
+                        <div className="p-4 border-t border-slate-100"><button onClick={onLogout} className="w-full text-left font-medium text-slate-400 hover:text-slate-800 px-4 py-2 text-sm transition-colors">Sair do Sistema</button></div>
+                    </aside>
+                    <main className="flex-1 p-6 md:p-10 overflow-y-auto">
+                        <div className="max-w-5xl mx-auto">
+                            {activeTab === 'leads' && <AdminLeads leads={leads} />}
+                            {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onDelete={onDeleteLetter} />}
+                            {activeTab === 'config' && <AdminSettings settings={settings} onSave={onSaveSettings} />}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        // --- SUB-TABS ADMIN ---
+        function AdminLeads({ leads }) {
+            return (
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <h2 className="text-lg font-semibold text-slate-900">Histórico de Leads</h2>
+                        <span className="bg-slate-100 text-slate-700 py-1 px-3 rounded text-xs font-semibold">{leads.length} Registros</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                                <tr><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Origem / Data</th><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Cliente</th><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Interesse Exato</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {leads.length === 0 ? <tr><td colSpan="3" className="p-8 text-center text-slate-400">Nenhum dado registrado.</td></tr> : leads.map((lead) => (
+                                    <tr key={lead.id} className="hover:bg-slate-50">
+                                        <td className="px-6 py-4 text-xs text-slate-500">
+                                            <span className="font-semibold text-slate-700 block mb-1">{lead.type}</span>
+                                            {new Date(lead.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <p className="font-medium text-slate-900">{lead.name}</p>
+                                            <a href={`https://wa.me/55${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-emerald-600 flex items-center gap-1 mt-1 text-xs"><i className="ph ph-whatsapp-logo"></i> {lead.phone}</a>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-700">
+                                            {lead.type === 'Funil' ? <div>Crédito: <b>{formatCurrency(lead.desiredCredit)}</b><br/>Parcela: {formatCurrency(lead.desiredInstallment)}</div> : <div>Cota: <b>{lead.letterId}</b><br/>{formatCurrency(lead.interestedCredit)}</div>}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminLetters({ letters, onAdd, onDelete }) {
+            const [showForm, setShowForm] = useState(false);
+            const [formData, setFormData] = useState({ code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' });
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                await onAdd({ ...formData, credit: parseFloat(formData.credit), entry: parseFloat(formData.entry), term: parseInt(formData.term), installment: parseFloat(formData.installment) });
+                setShowForm(false); setFormData({ code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' });
+            };
+
+            const handleFile = async (e) => { const file = e.target.files[0]; if(file) setFormData({...formData, bankLogo: await fileToBase64(file)}); };
+
+            return (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h2 className="text-lg font-semibold text-slate-900">Banco de Cartas</h2>
+                        <button onClick={() => setShowForm(!showForm)} className="bg-slate-900 text-white px-4 py-2 rounded text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
+                            <i className={`ph ${showForm ? 'ph-x' : 'ph-plus'}`}></i> {showForm ? 'Cancelar' : 'Cadastrar'}
+                        </button>
+                    </div>
+
+                    {showForm && (
+                        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cota</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Status</label><select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none"><option>Disponível</option><option>Reservada</option></select></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito (R$)</label><input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Entrada (R$)</label><input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Valor da Parcela (R$)</label><input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Logo Admin (Até 1MB)</label><input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs" /></div>
+                            <div className="col-span-full mt-2 text-right"><button type="submit" className="bg-slate-900 text-white font-medium py-2 px-6 rounded text-sm hover:bg-slate-800">Salvar Registro</button></div>
+                        </form>
+                    )}
+
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                                <tr><th className="p-4 font-medium text-xs uppercase tracking-wider">Cota</th><th className="p-4 font-medium text-xs uppercase tracking-wider">Valores</th><th className="p-4 font-medium text-xs uppercase tracking-wider text-right">Ação</th></tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-slate-700">
+                                {letters.map(l => (
+                                    <tr key={l.id} className="hover:bg-slate-50">
+                                        <td className="p-4"><div className="font-semibold text-slate-900">{l.code}</div><div className="text-xs mt-1">{l.adm}</div></td>
+                                        <td className="p-4"><div className="font-medium text-slate-900">{formatCurrency(l.credit)}</div><div className="text-xs mt-1">{l.term}x {formatCurrency(l.installment)}</div></td>
+                                        <td className="p-4 text-right"><button onClick={() => { if(confirm('Excluir?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red"><i className="ph ph-trash text-lg"></i></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
+        function AdminSettings({ settings, onSave }) {
+            const [localSet, setLocalSet] = useState(settings);
+            const [saved, setSaved] = useState(false);
+
+            const handleSave = async (e) => {
+                e.preventDefault();
+                await onSave(localSet);
+                setSaved(true); setTimeout(() => setSaved(false), 3000);
+            };
+
+            const handleImg = async (e, key) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, [key]: await fileToBase64(f)}); };
+            const handlePartner = async (e) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, partnerLogos: [...localSet.partnerLogos, await fileToBase64(f)]}); };
+
+            return (
+                <form onSubmit={handleSave} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-8">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                        <h2 className="text-lg font-semibold text-slate-900">Configurações do Site</h2>
+                        {saved && <span className="text-emerald-600 text-sm font-medium flex items-center gap-1"><i className="ph ph-check-circle"></i> Salvo na Nuvem</span>}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Comunicação</h3>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">WhatsApp (com DDD, só números)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Título Hero</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Subtítulo Hero</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Texto Rodapé / Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" rows="3"></textarea></div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Simulador</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Min</label><input type="number" value={localSet.funnelMinCredit} onChange={e=>setLocalSet({...localSet, funnelMinCredit: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Max</label><input type="number" value={localSet.funnelMaxCredit} onChange={e=>setLocalSet({...localSet, funnelMaxCredit: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Min</label><input type="number" value={localSet.funnelMinInstallment} onChange={e=>setLocalSet({...localSet, funnelMinInstallment: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Max</label><input type="number" value={localSet.funnelMaxInstallment} onChange={e=>setLocalSet({...localSet, funnelMaxInstallment: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            </div>
+
+                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mt-6 mb-2">Imagens (Max 1MB)</h3>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Logo Principal</label>
+                                {localSet.mainLogo && <img src={localSet.mainLogo} className="h-8 mb-2" />}
+                                <input type="file" onChange={e=>handleImg(e, 'mainLogo')} className="text-xs" />
+                                <button type="button" onClick={()=>setLocalSet({...localSet, mainLogo: null})} className="text-xs text-rf-red block mt-1">Remover</button>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Fundo Hero</label>
+                                {localSet.heroImage && <img src={localSet.heroImage} className="h-12 object-cover mb-2" />}
+                                <input type="file" onChange={e=>handleImg(e, 'heroImage')} className="text-xs" />
+                                <button type="button" onClick={()=>setLocalSet({...localSet, heroImage: null})} className="text-xs text-rf-red block mt-1">Remover</button>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Parceiros</label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                    {localSet.partnerLogos.map((l,i)=><div key={i} className="relative bg-slate-100 p-1 rounded w-12 h-8"><img src={l} className="max-h-full max-w-full"/><button type="button" onClick={()=>setLocalSet({...localSet, partnerLogos: localSet.partnerLogos.filter((_,idx)=>idx!==i)})} className="absolute -top-1 -right-1 text-rf-red"><i className="ph ph-x-circle"></i></button></div>)}
+                                </div>
+                                <input type="file" onChange={handlePartner} className="text-xs" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-4 text-right border-t border-slate-100"><button type="submit" className="bg-slate-900 text-white font-medium py-3 px-8 rounded text-sm hover:bg-slate-800 transition">Atualizar Site</button></div>
+                </form>
+            );
+        }
+
+        // Renderiza no HTML
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
