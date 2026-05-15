@@ -88,6 +88,10 @@
         /* Loader */
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #b91c1c; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Remove arrows from number input */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -114,6 +118,15 @@
             reader.onload = () => resolve(reader.result);
             reader.onerror = error => reject(error);
         });
+
+        const StatusBadge = ({ status }) => {
+            let style = 'bg-slate-100 text-slate-800 border-slate-200';
+            if (status === 'Disponível') style = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+            if (status === 'Contemplada') style = 'bg-purple-100 text-purple-800 border-purple-200';
+            if (status === 'Reservada') style = 'bg-amber-100 text-amber-800 border-amber-200';
+            
+            return <span className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider border ${style}`}>{status}</span>;
+        };
 
         const initialSettings = {
             adminPhone: '5511999999999',
@@ -182,7 +195,7 @@
                 return () => unsubscribe();
             }, [firebaseReady]);
 
-            // Carregar Dados do Firestore (Somente após autenticado)
+            // Carregar Dados do Firestore
             useEffect(() => {
                 if (!firebaseReady || !user) return;
 
@@ -205,7 +218,6 @@
                 // 1. Ouvir Configurações
                 const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        // Mescla para não perder campos novos caso o banco seja antigo
                         setSettings({ ...initialSettings, ...docSnap.data() });
                     } else {
                         setDoc(settingsRef, initialSettings).catch(e => console.log("Erro ao inicializar settings", e));
@@ -236,7 +248,7 @@
                 };
             }, [firebaseReady, user]);
 
-            // Funções de Banco de Dados com caminhos seguros
+            // Funções de Banco de Dados
             const handleAddLead = async (leadData) => {
                 if (!firebaseReady || !user) return;
                 try {
@@ -322,21 +334,19 @@
 
             return (
                 <div className="min-h-screen flex flex-col font-sans">
-                    {/* Header Modificado com Cor Personalizável */}
-                    <header style={{ backgroundColor: settings.headerBgColor || '#ffffff' }} className="border-b border-slate-200 sticky top-0 z-50 transition-all">
+                    {/* Header Modificado com Cor Personalizável e Logo + Nome Juntos */}
+                    <header style={{ backgroundColor: settings.headerBgColor || '#ffffff' }} className="border-b border-slate-200 sticky top-0 z-50 transition-all shadow-sm">
                         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                {settings.mainLogo ? (
-                                    // Aumentado a altura da logo do topo
-                                    <img src={settings.mainLogo} alt="Logo" className="h-16 md:h-20 object-contain drop-shadow-sm" />
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <i className="ph ph-buildings text-2xl text-rf-red"></i>
-                                        <span className="text-xl font-semibold tracking-tight text-slate-900 uppercase">
-                                            {settings.companyName.split(' ')[0]} <span className="text-rf-red font-light">{settings.companyName.split(' ').slice(1).join(' ')}</span>
-                                        </span>
-                                    </div>
+                            <div className="flex items-center gap-4">
+                                {settings.mainLogo && (
+                                    <img src={settings.mainLogo} alt="Logo" className="h-14 md:h-16 object-contain drop-shadow-sm" />
                                 )}
+                                <div className="flex items-center gap-2">
+                                    {!settings.mainLogo && <i className="ph ph-buildings text-2xl text-rf-red"></i>}
+                                    <span className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 uppercase">
+                                        {settings.companyName.split(' ')[0]} <span className="text-rf-red font-light">{settings.companyName.split(' ').slice(1).join(' ')}</span>
+                                    </span>
+                                </div>
                             </div>
                             <div className="hidden md:flex items-center gap-8">
                                 <a href="#simulador" className="text-sm font-medium text-slate-700 hover:text-rf-red transition-colors">Oportunidades</a>
@@ -352,9 +362,9 @@
                     {/* Hero Section */}
                     <section className="relative bg-rf-dark text-white pt-20 pb-28 overflow-hidden">
                         {settings.heroImage && (
-                            // Removido filtro de cinza e aumentada a opacidade da imagem
                             <div className="absolute inset-0 z-0 opacity-40">
                                 <img src={settings.heroImage} alt="Fundo" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-rf-dark/60 mix-blend-multiply"></div>
                             </div>
                         )}
                         <div className="max-w-7xl mx-auto px-6 relative z-10">
@@ -368,10 +378,10 @@
                                         {settings.heroSubtitle}
                                     </p>
                                     <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
-                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm">
+                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm border border-white/10">
                                             <i className="ph ph-medal text-xl text-rf-red"></i> Especialistas em Alto Padrão
                                         </div>
-                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm">
+                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm border border-white/10">
                                             <i className="ph ph-shield-check text-xl text-rf-red"></i> Negociação Segura
                                         </div>
                                     </div>
@@ -385,12 +395,12 @@
                         </div>
                     </section>
 
-                    {/* Tabela de Cartas */}
-                    <section id="simulador" className="py-24 max-w-7xl mx-auto px-6 w-full flex-1">
-                        <div className="mb-12 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 pb-6">
+                    {/* Tabela de Cartas e Cards Mobile */}
+                    <section id="simulador" className="py-20 max-w-7xl mx-auto px-6 w-full flex-1">
+                        <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 pb-6">
                             <div>
-                                <h2 className="text-3xl font-semibold text-slate-900 mb-2 tracking-tight">Oportunidades Disponíveis</h2>
-                                <p className="text-slate-500 font-light text-lg">Selecione a cota ideal para o seu momento financeiro.</p>
+                                <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Oportunidades Disponíveis</h2>
+                                <p className="text-slate-500 font-medium text-lg">Selecione a opção ideal para o seu momento financeiro.</p>
                             </div>
                             
                             {/* Filtros Clean */}
@@ -399,7 +409,7 @@
                                     {['Todas', 'Imóvel', 'Veículo'].map(cat => (
                                         <button 
                                             key={cat} onClick={() => setCategoryFilter(cat)}
-                                            className={`px-5 py-2 rounded text-sm font-medium transition-colors ${categoryFilter === cat ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                            className={`px-5 py-2 rounded text-sm font-bold transition-colors ${categoryFilter === cat ? 'bg-white text-rf-dark shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
                                         >
                                             {cat}
                                         </button>
@@ -408,73 +418,116 @@
                                 <div className="relative">
                                     <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
                                     <input 
-                                        type="text" placeholder="Buscar código ou banco..." 
-                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-slate-900 text-sm focus:border-slate-400 outline-none transition-colors"
+                                        type="text" placeholder="Procurar código ou banco..." 
+                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-slate-900 text-sm focus:border-rf-red focus:ring-1 focus:ring-rf-red outline-none transition-colors"
                                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Tabela */}
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse min-w-[800px]">
-                                    <thead>
-                                        <tr className="text-xs uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200">
-                                            <th className="px-6 py-5 font-medium">Administradora</th>
-                                            <th className="px-6 py-5 font-medium">Cota</th>
-                                            <th className="px-6 py-5 font-medium">Crédito</th>
-                                            <th className="px-6 py-5 font-medium">Entrada</th>
-                                            <th className="px-6 py-5 font-medium">Parcelas</th>
-                                            <th className="px-6 py-5 font-medium">Status</th>
-                                            <th className="px-6 py-5 font-medium text-right">Ação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filteredLetters.length === 0 ? (
-                                            <tr><td colSpan="7" className="text-center py-16 text-slate-500 font-light">Nenhuma carta encontrada com estes filtros.</td></tr>
-                                        ) : (
-                                            filteredLetters.map((letter) => (
-                                                <tr key={letter.id} className="hover:bg-slate-50 transition-colors group">
-                                                    <td className="px-6 py-4">
-                                                        {letter.bankLogo ? 
-                                                            <img src={letter.bankLogo} alt="Banco" className="h-8 w-auto object-contain mix-blend-multiply" /> : 
-                                                            <span className="font-semibold text-slate-700">{letter.adm}</span>
-                                                        }
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <p className="text-sm font-semibold text-slate-900">{letter.code}</p>
-                                                        <p className="text-xs text-slate-500">{letter.category}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <p className="text-lg font-semibold text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <p className="text-sm text-slate-600 font-medium">{formatCurrency(letter.entry)}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <p className="text-sm font-semibold text-slate-800">{letter.term}x {formatCurrency(letter.installment)}</p>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-sm text-[11px] font-semibold uppercase tracking-wider ${letter.status === 'Disponível' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
-                                                            {letter.status}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-6 py-4 text-right">
-                                                        <button 
-                                                            onClick={() => setSelectedLetter(letter)}
-                                                            className="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded text-sm font-medium transition-colors inline-flex items-center gap-2 shadow-sm whitespace-nowrap"
-                                                        >
-                                                            <i className="ph ph-whatsapp-logo text-lg"></i> Saber mais agora
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                        {/* DESKTOP: Visualização em Tabela com Cores da Identidade */}
+                        <div className="hidden md:block bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-rf-dark text-white border-b-4 border-rf-red">
+                                    <tr className="text-xs uppercase tracking-wider">
+                                        <th className="px-6 py-5 font-bold">Administradora</th>
+                                        <th className="px-6 py-5 font-bold">Código</th>
+                                        <th className="px-6 py-5 font-bold">Crédito</th>
+                                        <th className="px-6 py-5 font-bold">Entrada</th>
+                                        <th className="px-6 py-5 font-bold">Parcelas</th>
+                                        <th className="px-6 py-5 font-bold">Status</th>
+                                        <th className="px-6 py-5 font-bold text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredLetters.length === 0 ? (
+                                        <tr><td colSpan="7" className="text-center py-16 text-slate-500 font-medium">Nenhum registro encontrado com estes filtros.</td></tr>
+                                    ) : (
+                                        filteredLetters.map((letter) => (
+                                            <tr key={letter.id} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    {letter.bankLogo ? 
+                                                        <img src={letter.bankLogo} alt="Banco" className="h-10 md:h-12 w-auto object-contain mix-blend-multiply" /> : 
+                                                        <span className="font-bold text-slate-800 text-base">{letter.adm}</span>
+                                                    }
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-bold text-slate-900">{letter.code}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{letter.category}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-lg font-black text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm text-slate-700 font-semibold">{formatCurrency(letter.entry)}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-bold text-rf-red">{letter.term}x {formatCurrency(letter.installment)}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <StatusBadge status={letter.status} />
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button 
+                                                        onClick={() => setSelectedLetter(letter)}
+                                                        className="bg-[#25D366] hover:bg-[#128C7E] text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-md hover:shadow-lg inline-flex items-center gap-2 whitespace-nowrap transform hover:-translate-y-0.5"
+                                                    >
+                                                        <i className="ph ph-whatsapp-logo text-lg"></i> Saber mais agora
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* MOBILE: Visualização em Cards (Sem Rolagem Horizontal) */}
+                        <div className="md:hidden grid grid-cols-1 gap-4">
+                            {filteredLetters.length === 0 ? (
+                                <div className="text-center py-10 bg-white rounded-xl border border-slate-200 text-slate-500 font-medium">Nenhum registro encontrado.</div>
+                            ) : (
+                                filteredLetters.map((letter) => (
+                                    <div key={letter.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col gap-4">
+                                        <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 h-16 w-16 flex items-center justify-center">
+                                                    {letter.bankLogo ? <img src={letter.bankLogo} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-bold text-slate-800 text-xs text-center">{letter.adm}</span>}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold text-slate-900">Código {letter.code}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{letter.adm} • {letter.category}</p>
+                                                </div>
+                                            </div>
+                                            <StatusBadge status={letter.status} />
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Crédito</p>
+                                                <p className="text-lg font-black text-slate-900">{formatCurrency(letter.credit)}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500 font-semibold uppercase mb-0.5">Entrada</p>
+                                                <p className="text-sm font-bold text-slate-700">{formatCurrency(letter.entry)}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex justify-between items-center">
+                                            <span className="text-xs font-semibold text-slate-600 uppercase">Mensalidade</span>
+                                            <span className="text-base font-bold text-rf-red">{letter.term}x {formatCurrency(letter.installment)}</span>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => setSelectedLetter(letter)} 
+                                            className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-3.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-md transition-all active:scale-95"
+                                        >
+                                            <i className="ph ph-whatsapp-logo text-xl"></i> Saber mais agora
+                                        </button>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </section>
 
@@ -483,47 +536,47 @@
                         <div className="max-w-7xl mx-auto px-6">
                             <div className="grid md:grid-cols-12 gap-12 mb-12">
                                 <div className="md:col-span-5">
-                                    <div className="mb-6">
-                                        {settings.mainLogo ? (
-                                            // Aumentado a altura e removido escala de cinza/opacidade do rodapé
-                                            <img src={settings.mainLogo} alt="Logo" className="h-16 object-contain" />
-                                        ) : (
-                                            <span className="text-lg font-semibold text-slate-900 uppercase tracking-wide">{settings.companyName}</span>
+                                    <div className="mb-6 flex items-center gap-3">
+                                        {settings.mainLogo && (
+                                            <img src={settings.mainLogo} alt="Logo" className="h-12 md:h-16 object-contain" />
                                         )}
+                                        <span className="text-xl font-bold tracking-tight text-slate-900 uppercase">
+                                            {settings.companyName.split(' ')[0]} <span className="text-rf-red font-light">{settings.companyName.split(' ').slice(1).join(' ')}</span>
+                                        </span>
                                     </div>
-                                    <p className="text-sm leading-relaxed mb-4 text-slate-500 font-light pr-8">
+                                    <p className="text-sm leading-relaxed mb-4 text-slate-500 font-medium pr-8">
                                         {settings.aboutText}
                                     </p>
-                                    <p className="text-xs text-slate-400 font-medium">CNPJ: {settings.cnpj}</p>
+                                    <p className="text-xs text-slate-400 font-bold">CNPJ: {settings.cnpj}</p>
                                 </div>
                                 
                                 <div className="md:col-span-4">
-                                    <h3 className="text-slate-900 text-xs font-semibold mb-6 uppercase tracking-widest">Bancos Parceiros</h3>
+                                    <h3 className="text-slate-900 text-sm font-bold mb-6 uppercase tracking-widest border-b border-slate-100 pb-2">Bancos Parceiros</h3>
                                     {settings.partnerLogos && settings.partnerLogos.length > 0 ? (
                                         <div className="flex flex-wrap gap-4">
                                             {settings.partnerLogos.map((logo, i) => (
-                                                <div key={i} className="h-10 w-20 flex items-center justify-start opacity-70 grayscale hover:grayscale-0 hover:opacity-100 transition">
-                                                    <img src={logo} alt="Parceiro" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                                                <div key={i} className="h-12 w-24 flex items-center justify-start transition-transform hover:scale-105">
+                                                    <img src={logo} alt="Parceiro" className="max-h-full max-w-full object-contain drop-shadow-sm mix-blend-multiply" />
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-slate-500 font-light">Atuamos com as maiores e mais seguras administradoras do Brasil.</p>
+                                        <p className="text-sm text-slate-500 font-medium">Atuamos com as maiores e mais seguras administradoras do Brasil.</p>
                                     )}
                                 </div>
                                 
                                 <div className="md:col-span-3">
-                                    <h3 className="text-slate-900 text-xs font-semibold mb-6 uppercase tracking-widest">Atendimento</h3>
-                                    <a href={`https://wa.me/${settings.adminPhone}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-slate-600 hover:text-rf-red transition-colors mb-4 text-sm font-medium">
-                                        <i className="ph ph-whatsapp-logo text-lg"></i> {settings.adminPhone}
+                                    <h3 className="text-slate-900 text-sm font-bold mb-6 uppercase tracking-widest border-b border-slate-100 pb-2">Atendimento</h3>
+                                    <a href={`https://wa.me/${settings.adminPhone}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-slate-600 hover:text-rf-red transition-colors mb-4 text-sm font-bold">
+                                        <i className="ph ph-whatsapp-logo text-2xl text-[#25D366]"></i> {settings.adminPhone}
                                     </a>
                                 </div>
                             </div>
                             
-                            <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400">
+                            <div className="border-t border-slate-100 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-400 font-medium">
                                 <p>&copy; {new Date().getFullYear()} {settings.companyName}. Todos os direitos reservados.</p>
-                                <button onClick={onAdminClick} className="mt-4 md:mt-0 hover:text-slate-700 transition-colors flex items-center gap-1.5" title="Acesso Administrativo">
-                                    <i className="ph ph-lock-key text-sm"></i> Admin
+                                <button onClick={onAdminClick} className="mt-4 md:mt-0 hover:text-slate-700 transition-colors flex items-center gap-1.5 p-2 rounded-md hover:bg-slate-100" title="Acesso Administrativo">
+                                    <i className="ph ph-lock-key text-base"></i> Admin
                                 </button>
                             </div>
                         </div>
@@ -534,7 +587,7 @@
                         <LeadCaptureModal 
                             letter={selectedLetter} adminPhone={settings.adminPhone}
                             onClose={() => setSelectedLetter(null)} 
-                            onSubmit={(leadData) => addLead({ ...leadData, type: 'Carta', letterId: selectedLetter.code, interestedCredit: selectedLetter.credit, timestamp: new Date().toISOString() })}
+                            onSubmit={(leadData) => addLead({ ...leadData, type: 'Código', letterId: selectedLetter.code, interestedCredit: selectedLetter.credit, timestamp: new Date().toISOString() })}
                         />
                     )}
                 </div>
@@ -571,62 +624,63 @@
             };
 
             return (
-                <div className="bg-white rounded-xl shadow-xl p-8 relative overflow-hidden border border-slate-100">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 relative overflow-hidden border border-slate-100">
                     {step < 4 && (
                         <div className="flex gap-2 mb-8">
-                            {[1,2,3].map(i => <div key={i} className={`h-1 flex-1 rounded-full ${step >= i ? 'bg-rf-red' : 'bg-slate-100'}`}></div>)}
+                            {[1,2,3].map(i => <div key={i} className={`h-1.5 flex-1 rounded-full ${step >= i ? 'bg-rf-red' : 'bg-slate-100'}`}></div>)}
                         </div>
                     )}
 
                     {step === 1 && (
                         <div className="animate-in fade-in duration-300">
-                            <h3 className="text-xl font-semibold text-slate-900 mb-1">Valor do Crédito</h3>
-                            <p className="text-slate-500 text-sm mb-8 font-light">Defina o montante desejado.</p>
-                            <div className="mb-8 text-center"><span className="text-4xl font-semibold text-slate-900 tracking-tight">{formatCurrency(credit)}</span></div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-1">Valor do Crédito</h3>
+                            <p className="text-slate-500 text-sm mb-8 font-medium">Defina o montante desejado.</p>
+                            <div className="mb-8 text-center"><span className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(credit)}</span></div>
                             <input type="range" min={minC} max={maxC} step="5000" value={credit} onChange={(e) => setCredit(Number(e.target.value))} className="w-full mb-6" />
-                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-medium"><span>{formatCurrency(minC)}</span><span>{formatCurrency(maxC)}</span></div>
-                            <button onClick={() => setStep(2)} className="w-full bg-slate-900 text-white font-medium py-3.5 rounded hover:bg-slate-800 transition-colors">Continuar</button>
+                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-bold"><span>{formatCurrency(minC)}</span><span>{formatCurrency(maxC)}</span></div>
+                            <button onClick={() => setStep(2)} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-rf-red transition-colors shadow-md hover:shadow-lg">Continuar</button>
                         </div>
                     )}
 
                     {step === 2 && (
                         <div className="animate-in fade-in duration-300">
                             <div className="flex items-center gap-2 mb-1">
-                                <button onClick={()=>setStep(1)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-lg"></i></button>
-                                <h3 className="text-xl font-semibold text-slate-900">Parcela Mensal</h3>
+                                <button onClick={()=>setStep(1)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-xl"></i></button>
+                                <h3 className="text-xl font-bold text-slate-900">Parcela Mensal</h3>
                             </div>
-                            <p className="text-slate-500 text-sm mb-8 font-light ml-7">Adapte ao seu planejamento.</p>
-                            <div className="mb-8 text-center"><span className="text-4xl font-semibold text-slate-900 tracking-tight">{formatCurrency(installment)}</span></div>
+                            <p className="text-slate-500 text-sm mb-8 font-medium ml-7">Adapte ao seu planejamento.</p>
+                            <div className="mb-8 text-center"><span className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(installment)}</span></div>
                             <input type="range" min={minI} max={maxI} step="100" value={installment} onChange={(e) => setInstallment(Number(e.target.value))} className="w-full mb-6" />
-                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-medium"><span>{formatCurrency(minI)}</span><span>{formatCurrency(maxI)}</span></div>
-                            <button onClick={() => setStep(3)} className="w-full bg-slate-900 text-white font-medium py-3.5 rounded hover:bg-slate-800 transition-colors">Avançar</button>
+                            <div className="flex justify-between text-xs text-slate-400 mb-8 font-bold"><span>{formatCurrency(minI)}</span><span>{formatCurrency(maxI)}</span></div>
+                            <button onClick={() => setStep(3)} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-rf-red transition-colors shadow-md hover:shadow-lg">Avançar</button>
                         </div>
                     )}
 
                     {step === 3 && (
                         <div className="animate-in fade-in duration-300">
                             <div className="flex items-center gap-2 mb-6">
-                                <button onClick={()=>setStep(2)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-lg"></i></button>
-                                <h3 className="text-xl font-semibold text-slate-900">Contato</h3>
+                                <button onClick={()=>setStep(2)} className="text-slate-400 hover:text-slate-900"><i className="ph ph-caret-left text-xl"></i></button>
+                                <h3 className="text-xl font-bold text-slate-900">Contato</h3>
                             </div>
                             <form onSubmit={handleFinish} className="space-y-4">
-                                {/* Adicionada cor text-slate-900 para não ficar branco */}
-                                <input required type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="Nome completo" />
-                                <input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="WhatsApp" />
-                                <button type="submit" disabled={loading} className="w-full bg-[#128C7E] hover:bg-[#075E54] text-white font-medium py-3.5 rounded transition-colors flex items-center justify-center gap-2 mt-4 shadow-sm">
-                                    <i className="ph ph-whatsapp-logo text-lg"></i> {loading ? 'Aguarde...' : 'Receber Opções'}
+                                <input required type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 font-medium border border-slate-200 rounded-xl p-4 focus:border-rf-red focus:ring-1 focus:ring-rf-red outline-none text-sm transition-all" placeholder="Nome completo" />
+                                <input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 font-medium border border-slate-200 rounded-xl p-4 focus:border-rf-red focus:ring-1 focus:ring-rf-red outline-none text-sm transition-all" placeholder="WhatsApp (com DDD)" />
+                                <button type="submit" disabled={loading} className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2 mt-4 shadow-md hover:shadow-lg">
+                                    <i className="ph ph-whatsapp-logo text-xl"></i> {loading ? 'Aguarde...' : 'Receber Opções no WhatsApp'}
                                 </button>
                             </form>
-                            <p className="text-xs text-center text-slate-400 mt-4 flex items-center justify-center gap-1"><i className="ph ph-lock-key"></i> Dados sigilosos protegidos.</p>
+                            <p className="text-xs text-center text-slate-400 mt-4 flex items-center justify-center gap-1 font-medium"><i className="ph ph-lock-key"></i> Seus dados estão protegidos conosco.</p>
                         </div>
                     )}
 
                     {step === 4 && (
                         <div className="text-center py-6 animate-in fade-in duration-300">
-                            <i className="ph ph-check-circle text-5xl text-emerald-600 mb-4 inline-block"></i>
-                            <h3 className="text-xl font-semibold text-slate-900 mb-2">Simulação Enviada!</h3>
-                            <p className="text-slate-500 text-sm mb-8 font-light">Seu consultor iniciará o atendimento via WhatsApp.</p>
-                            <button onClick={() => { setStep(1); setName(''); setPhone(''); }} className="text-slate-400 text-sm hover:text-slate-900">Nova Simulação</button>
+                            <div className="bg-emerald-50 text-emerald-600 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i className="ph ph-check-circle text-4xl"></i>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Simulação Enviada!</h3>
+                            <p className="text-slate-500 text-sm mb-8 font-medium">Seu consultor iniciará o atendimento via WhatsApp em instantes.</p>
+                            <button onClick={() => { setStep(1); setName(''); setPhone(''); }} className="text-rf-red font-bold text-sm hover:underline">Fazer nova simulação</button>
                         </div>
                     )}
                 </div>
@@ -640,28 +694,29 @@
             const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [submitting, setSubmitting] = useState(false);
             const handleSubmit = (e) => {
                 e.preventDefault(); setSubmitting(true); onSubmit({ name, phone });
-                const msg = `Olá, sou *${name}*.\nTenho interesse na *Cota ${letter.code}*.\n- Crédito: ${formatCurrency(letter.credit)}\n- Entrada: ${formatCurrency(letter.entry)}\n- Parcela: ${letter.term}x de ${formatCurrency(letter.installment)}\n\nMeu WhatsApp: ${phone}.`;
+                const msg = `Olá, sou *${name}*.\nTenho interesse no *Código ${letter.code}*.\n- Crédito: ${formatCurrency(letter.credit)}\n- Entrada: ${formatCurrency(letter.entry)}\n- Parcela: ${letter.term}x de ${formatCurrency(letter.installment)}\n\nMeu WhatsApp: ${phone}.`;
                 window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                 onClose();
             };
             return (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100">
-                            <h3 className="font-semibold text-slate-900 flex items-center gap-2"><i className="ph ph-info"></i> Detalhes da Cota</h3>
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-900"><i className="ph ph-x text-lg"></i></button>
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100 bg-slate-50">
+                            <h3 className="font-bold text-slate-900 flex items-center gap-2"><i className="ph ph-info text-rf-red text-xl"></i> Detalhes do Código</h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-900 bg-white p-1 rounded-md border border-slate-200"><i className="ph ph-x text-lg"></i></button>
                         </div>
                         <div className="p-6 text-center">
-                            <p className="text-xs text-slate-500 uppercase tracking-widest mb-2 font-medium">Crédito</p>
-                            <p className="text-3xl font-semibold text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
-                            <p className="text-sm text-slate-500 mt-2 font-medium">Cota {letter.code} • {letter.term}x {formatCurrency(letter.installment)}</p>
+                            <p className="text-xs text-slate-500 uppercase tracking-widest mb-1 font-bold">Crédito</p>
+                            <p className="text-4xl font-black text-slate-900 tracking-tight mb-3">{formatCurrency(letter.credit)}</p>
+                            <div className="bg-slate-50 rounded-lg p-3 inline-block border border-slate-100">
+                                <p className="text-sm text-slate-700 font-bold">Código {letter.code} • {letter.term}x {formatCurrency(letter.installment)}</p>
+                            </div>
                             
-                            <form onSubmit={handleSubmit} className="mt-8 space-y-3">
-                                {/* Adicionada cor text-slate-900 */}
-                                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu nome" />
-                                <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu WhatsApp" />
-                                <button type="submit" disabled={submitting} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded flex items-center justify-center gap-2 mt-2 transition-colors">
-                                    {submitting ? 'Enviando...' : 'Falar com Consultor'} <i className="ph ph-arrow-right"></i>
+                            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+                                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 font-medium border border-slate-200 rounded-xl p-3.5 text-sm outline-none focus:border-rf-red focus:ring-1 focus:ring-rf-red" placeholder="Seu nome" />
+                                <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 font-medium border border-slate-200 rounded-xl p-3.5 text-sm outline-none focus:border-rf-red focus:ring-1 focus:ring-rf-red" placeholder="Seu WhatsApp" />
+                                <button type="submit" disabled={submitting} className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 mt-4 transition-colors shadow-md">
+                                    <i className="ph ph-whatsapp-logo text-xl"></i> {submitting ? 'Redirecionando...' : 'Falar com Consultor'}
                                 </button>
                             </form>
                         </div>
@@ -692,24 +747,24 @@
         }
 
         function AdminPanel({ letters, onAddLetter, onDeleteLetter, leads, settings, onSaveSettings, onLogout }) {
-            const [activeTab, setActiveTab] = useState('leads');
+            const [activeTab, setActiveTab] = useState('cartas'); // Mudado padrão para iniciar em Cartas
             return (
                 <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-                    <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col">
+                    <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
                         <div className="p-6 border-b border-slate-100">
-                            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                                <i className="ph ph-gear text-lg"></i> Gestão RF
+                            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                                <i className="ph ph-gear-six text-rf-red text-xl"></i> Gestão RF
                             </h2>
                         </div>
-                        <nav className="flex-1 p-4 space-y-1">
-                            <button onClick={() => setActiveTab('leads')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'leads' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-users text-lg"></i> Relatórios (Leads)</button>
-                            <button onClick={() => setActiveTab('cartas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'cartas' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-list-bullets text-lg"></i> Banco de Cartas</button>
-                            <button onClick={() => setActiveTab('config')} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-sm font-medium ${activeTab === 'config' ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50'}`}><i className="ph ph-pencil-simple text-lg"></i> Site & Config.</button>
+                        <nav className="flex-1 p-4 space-y-2">
+                            <button onClick={() => setActiveTab('cartas')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-bold ${activeTab === 'cartas' ? 'bg-rf-red text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}><i className="ph ph-list-bullets text-lg"></i> Banco de Cartas</button>
+                            <button onClick={() => setActiveTab('leads')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-bold ${activeTab === 'leads' ? 'bg-rf-red text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}><i className="ph ph-users text-lg"></i> Relatórios (Leads)</button>
+                            <button onClick={() => setActiveTab('config')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-sm font-bold ${activeTab === 'config' ? 'bg-rf-red text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}><i className="ph ph-pencil-simple text-lg"></i> Site & Config.</button>
                         </nav>
-                        <div className="p-4 border-t border-slate-100"><button onClick={onLogout} className="w-full text-left font-medium text-slate-400 hover:text-slate-800 px-4 py-2 text-sm transition-colors">Sair do Sistema</button></div>
+                        <div className="p-4 border-t border-slate-100"><button onClick={onLogout} className="w-full text-center font-bold text-slate-500 hover:text-rf-red px-4 py-3 border border-slate-200 rounded-lg text-sm transition-colors">Sair do Sistema</button></div>
                     </aside>
                     <main className="flex-1 p-6 md:p-10 overflow-y-auto">
-                        <div className="max-w-5xl mx-auto">
+                        <div className="max-w-6xl mx-auto">
                             {activeTab === 'leads' && <AdminLeads leads={leads} settings={settings} />}
                             {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onDelete={onDeleteLetter} />}
                             {activeTab === 'config' && <AdminSettings settings={settings} onSave={onSaveSettings} />}
@@ -723,19 +778,14 @@
         function AdminLeads({ leads, settings }) {
             const [sendingMsg, setSendingMsg] = useState(null);
 
-            // FUNÇÃO PARA ENVIAR MENSAGEM VIA EVOLUTION API
             const sendEvolutionMessage = async (lead) => {
                 if (!settings.evolutionInstance) {
                     alert("Atenção! Vá em 'Site & Config.' e preencha o campo 'Nome da Instância' no Evolution API para poder disparar mensagens.");
                     return;
                 }
-
                 setSendingMsg(lead.id);
-
                 try {
                     const url = `${settings.evolutionApiUrl}/message/sendText/${settings.evolutionInstance}`;
-                    
-                    // Substitui as variáveis no texto pre-configurado
                     const valorInteresse = lead.type === 'Funil' ? lead.desiredCredit : lead.interestedCredit;
                     let textMessage = settings.evolutionMessage
                         .replace('{nome}', lead.name.split(' ')[0])
@@ -743,69 +793,72 @@
 
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'apikey': settings.evolutionApiKey
-                        },
+                        headers: { 'Content-Type': 'application/json', 'apikey': settings.evolutionApiKey },
                         body: JSON.stringify({
-                            number: lead.phone.replace(/\D/g, ''), // Limpa o telefone
+                            number: lead.phone.replace(/\D/g, ''),
                             options: { delay: 1200, presence: "composing" },
                             textMessage: { text: textMessage }
                         })
                     });
-                    
-                    if (response.ok) {
-                        alert(`Mensagem enviada com sucesso para ${lead.name}!`);
-                    } else {
-                        const err = await response.json();
-                        alert("Falha ao enviar: " + (err.response?.message || "Verifique as configurações e a instância da API."));
-                    }
-                } catch (error) {
-                    console.error("Erro Evolution:", error);
-                    alert("Erro de conexão com a API Evolution. Verifique a URL e a conectividade.");
-                }
+                    if (response.ok) alert(`Mensagem enviada com sucesso para ${lead.name}!`);
+                    else { const err = await response.json(); alert("Falha ao enviar: " + (err.response?.message || "Verifique as configurações e a instância da API.")); }
+                } catch (error) { console.error("Erro Evolution:", error); alert("Erro de conexão com a API Evolution."); }
                 setSendingMsg(null);
             };
 
             return (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                    <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-                        <h2 className="text-lg font-semibold text-slate-900">Histórico de Leads</h2>
-                        <span className="bg-slate-100 text-slate-700 py-1 px-3 rounded text-xs font-semibold">{leads.length} Registros</span>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h2 className="text-xl font-bold text-slate-900">Histórico de Leads</h2>
+                        <span className="bg-slate-200 text-slate-800 py-1.5 px-4 rounded-full text-xs font-bold">{leads.length} Cadastros</span>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                                 <tr>
-                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Origem / Data</th>
-                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Cliente</th>
-                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Interesse Exato</th>
-                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider text-right">Ação Rápida</th>
+                                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Origem / Data</th>
+                                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Cliente</th>
+                                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Interesse Exato</th>
+                                    <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider text-right">Ação Automática</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {leads.length === 0 ? <tr><td colSpan="4" className="p-8 text-center text-slate-400">Nenhum dado registrado.</td></tr> : leads.map((lead) => (
-                                    <tr key={lead.id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4 text-xs text-slate-500">
-                                            <span className="font-semibold text-slate-700 block mb-1">{lead.type}</span>
+                                {leads.length === 0 ? <tr><td colSpan="4" className="p-12 text-center text-slate-400 font-medium">Nenhum dado registrado até o momento.</td></tr> : leads.map((lead) => (
+                                    <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
+                                        <td className="px-6 py-5 text-xs text-slate-500">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold mb-2 ${lead.type === 'Funil' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                {lead.type === 'Funil' ? <i className="ph ph-sliders-horizontal"></i> : <i className="ph ph-list-bullets"></i>} {lead.type}
+                                            </span><br/>
                                             {new Date(lead.timestamp).toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <p className="font-medium text-slate-900">{lead.name}</p>
-                                            <a href={`https://wa.me/55${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-emerald-600 flex items-center gap-1 mt-1 text-xs"><i className="ph ph-whatsapp-logo"></i> {lead.phone}</a>
+                                        <td className="px-6 py-5">
+                                            <p className="font-bold text-slate-900 text-base">{lead.name}</p>
+                                            <a href={`https://wa.me/55${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 mt-1 font-bold"><i className="ph ph-whatsapp-logo text-lg"></i> {lead.phone}</a>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-slate-700">
-                                            {lead.type === 'Funil' ? <div>Crédito: <b>{formatCurrency(lead.desiredCredit)}</b><br/>Parcela: {formatCurrency(lead.desiredInstallment)}</div> : <div>Cota: <b>{lead.letterId}</b><br/>{formatCurrency(lead.interestedCredit)}</div>}
+                                        <td className="px-6 py-5 text-sm text-slate-700">
+                                            <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                                                {lead.type === 'Funil' ? 
+                                                    <>
+                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Desejado</p>
+                                                        <p className="font-black text-slate-900">{formatCurrency(lead.desiredCredit)}</p>
+                                                        <p className="text-xs font-bold text-rf-red mt-1">Parcela: {formatCurrency(lead.desiredInstallment)}</p>
+                                                    </> 
+                                                    : 
+                                                    <>
+                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Código {lead.letterId}</p>
+                                                        <p className="font-black text-slate-900">{formatCurrency(lead.interestedCredit)}</p>
+                                                    </>
+                                                }
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            {/* Botão de Disparo Evolution API */}
+                                        <td className="px-6 py-5 text-right align-middle">
                                             <button 
                                                 onClick={() => sendEvolutionMessage(lead)}
                                                 disabled={sendingMsg === lead.id}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 ml-auto disabled:opacity-50"
+                                                className="bg-slate-900 hover:bg-rf-red text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow-md flex items-center gap-2 ml-auto disabled:opacity-50 disabled:cursor-not-allowed"
                                             >
-                                                <i className="ph ph-paper-plane-tilt text-sm"></i> 
-                                                {sendingMsg === lead.id ? 'Enviando...' : 'Disparar Mensagem'}
+                                                <i className="ph ph-paper-plane-tilt text-base"></i> 
+                                                {sendingMsg === lead.id ? 'Enviando...' : 'Disparar API'}
                                             </button>
                                         </td>
                                     </tr>
@@ -831,43 +884,104 @@
 
             return (
                 <div className="space-y-6">
-                    <div className="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                        <h2 className="text-lg font-semibold text-slate-900">Banco de Cartas</h2>
-                        <button onClick={() => setShowForm(!showForm)} className="bg-slate-900 text-white px-4 py-2 rounded text-sm font-medium hover:bg-slate-800 transition flex items-center gap-2">
-                            <i className={`ph ${showForm ? 'ph-x' : 'ph-plus'}`}></i> {showForm ? 'Cancelar' : 'Cadastrar'}
+                    <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <h2 className="text-xl font-bold text-slate-900">Banco de Cartas</h2>
+                        <button onClick={() => setShowForm(!showForm)} className="bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rf-red transition-colors flex items-center gap-2 shadow-md">
+                            <i className={`ph ${showForm ? 'ph-x' : 'ph-plus'} text-lg`}></i> {showForm ? 'Cancelar' : 'Cadastrar Novo Código'}
                         </button>
                     </div>
 
                     {showForm && (
-                        <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cota</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Status</label><select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none"><option>Disponível</option><option>Reservada</option></select></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito (R$)</label><input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Entrada (R$)</label><input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Valor da Parcela (R$)</label><input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Logo Admin (Até 1MB)</label><input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs" /></div>
-                            <div className="col-span-full mt-2 text-right"><button type="submit" className="bg-slate-900 text-white font-medium py-2 px-6 rounded text-sm hover:bg-slate-800">Salvar Registro</button></div>
+                        <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4">
+                            <div className="col-span-full mb-2"><h3 className="font-bold text-slate-900 text-base border-b border-slate-100 pb-3">Preencha os dados da Nova Carta</h3></div>
+                            
+                            {/* Linha 1 */}
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Código de Identificação</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 8832" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Status da Carta</label>
+                                <select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent">
+                                    <option>Disponível</option>
+                                    <option>Contemplada</option>
+                                    <option>Reservada</option>
+                                </select>
+                            </div>
+                            
+                            {/* Valores com R$ fixo */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Crédito</label>
+                                <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
+                                    <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
+                                    <input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00"/>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Entrada</label>
+                                <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
+                                    <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
+                                    <input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Valor da Parcela</label>
+                                <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
+                                    <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
+                                    <input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
+                                </div>
+                            </div>
+
+                            {/* Informações Extras */}
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 180" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: Itaú" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Logo do Banco (Arquivo)</label><input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-slate-900 file:text-white cursor-pointer" /></div>
+                            
+                            <div className="col-span-full mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                                <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-10 rounded-xl shadow-md transition-colors text-sm flex items-center gap-2">
+                                    <i className="ph ph-check-circle text-lg"></i> Salvar no Banco
+                                </button>
+                            </div>
                         </form>
                     )}
 
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                                <tr><th className="p-4 font-medium text-xs uppercase tracking-wider">Cota</th><th className="p-4 font-medium text-xs uppercase tracking-wider">Valores</th><th className="p-4 font-medium text-xs uppercase tracking-wider text-right">Ação</th></tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-slate-700">
-                                {letters.map(l => (
-                                    <tr key={l.id} className="hover:bg-slate-50">
-                                        <td className="p-4"><div className="font-semibold text-slate-900">{l.code}</div><div className="text-xs mt-1">{l.adm}</div></td>
-                                        <td className="p-4"><div className="font-medium text-slate-900">{formatCurrency(l.credit)}</div><div className="text-xs mt-1">{l.term}x {formatCurrency(l.installment)}</div></td>
-                                        <td className="p-4 text-right"><button onClick={() => { if(confirm('Excluir?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red"><i className="ph ph-trash text-lg"></i></button></td>
+                    {/* Tabela Admin Repaginada */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm whitespace-nowrap">
+                                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                    <tr>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider">Código/Admin</th>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider">Crédito</th>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider">Entrada</th>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider">Parcelas</th>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider">Status</th>
+                                        <th className="p-5 font-bold text-xs uppercase tracking-wider text-right">Ação</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-700">
+                                    {letters.length === 0 ? (
+                                        <tr><td colSpan="6" className="text-center py-12 font-medium text-slate-400">Não há cartas cadastradas no momento.</td></tr>
+                                    ) : (
+                                    letters.map(l => (
+                                        <tr key={l.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="p-5">
+                                                <div className="font-bold text-slate-900 text-base">{l.code}</div>
+                                                <div className="text-xs font-medium mt-1 text-slate-500 flex items-center gap-2">
+                                                    {l.bankLogo && <img src={l.bankLogo} className="h-5 object-contain mix-blend-multiply" />}
+                                                    {!l.bankLogo && l.adm}
+                                                </div>
+                                            </td>
+                                            <td className="p-5 font-black text-slate-900 text-base">{formatCurrency(l.credit)}</td>
+                                            <td className="p-5 font-bold text-slate-700">{formatCurrency(l.entry)}</td>
+                                            <td className="p-5 font-bold text-rf-red">{l.term}x {formatCurrency(l.installment)}</td>
+                                            <td className="p-5"><StatusBadge status={l.status} /></td>
+                                            <td className="p-5 text-right">
+                                                <button onClick={() => { if(confirm('Excluir esta carta definitivamente?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red bg-white border border-slate-200 hover:border-rf-red p-2 rounded-lg transition-colors shadow-sm"><i className="ph ph-trash text-lg"></i></button>
+                                            </td>
+                                        </tr>
+                                    )))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             );
@@ -887,85 +1001,101 @@
             const handlePartner = async (e) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, partnerLogos: [...localSet.partnerLogos, await fileToBase64(f)]}); };
 
             return (
-                <form onSubmit={handleSave} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-8">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                        <h2 className="text-lg font-semibold text-slate-900">Configurações do Site</h2>
-                        {saved && <span className="text-emerald-600 text-sm font-medium flex items-center gap-1"><i className="ph ph-check-circle"></i> Salvo na Nuvem</span>}
+                <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-10">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-5">
+                        <h2 className="text-xl font-bold text-slate-900">Editar Site & Textos</h2>
+                        {saved && <span className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 border border-emerald-100 shadow-sm"><i className="ph ph-check-circle text-lg"></i> Atualizado na Nuvem!</span>}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Comunicação</h3>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">WhatsApp (com DDD, só números)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                            <div className="flex gap-4">
-                                <div className="flex-1"><label className="block text-xs font-semibold text-slate-500 mb-1">Título Hero</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div className="w-24"><label className="block text-xs font-semibold text-slate-500 mb-1">Cor Menu</label><input type="color" value={localSet.headerBgColor} onChange={e=>setLocalSet({...localSet, headerBgColor: e.target.value})} className="w-full h-10 border border-slate-200 rounded p-1 cursor-pointer" /></div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-5">
+                            <h3 className="text-sm font-black text-rf-red uppercase tracking-widest mb-3 flex items-center gap-2"><i className="ph ph-text-aa text-lg"></i> Comunicação</h3>
+                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">WhatsApp (Recepção de Leads)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" placeholder="Ex: 5511999999999" /></div>
+                                <div className="flex gap-4">
+                                    <div className="flex-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Título Capa (Hero)</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                    <div className="w-32"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Cor do Menu</label><div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden h-[46px]"><input type="color" value={localSet.headerBgColor} onChange={e=>setLocalSet({...localSet, headerBgColor: e.target.value})} className="w-full h-full cursor-pointer opacity-0 absolute" /><div className="w-full h-full pointer-events-none" style={{backgroundColor: localSet.headerBgColor}}></div></div></div>
+                                </div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Subtítulo Capa</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" rows="2"></textarea></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Texto Rodapé / A Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" rows="3"></textarea></div>
                             </div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Subtítulo Hero</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Texto Rodapé / Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="3"></textarea></div>
                         </div>
 
-                        <div className="space-y-4">
-                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Simulador</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Min</label><input type="number" value={localSet.funnelMinCredit} onChange={e=>setLocalSet({...localSet, funnelMinCredit: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Max</label><input type="number" value={localSet.funnelMaxCredit} onChange={e=>setLocalSet({...localSet, funnelMaxCredit: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Min</label><input type="number" value={localSet.funnelMinInstallment} onChange={e=>setLocalSet({...localSet, funnelMinInstallment: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Max</label><input type="number" value={localSet.funnelMaxInstallment} onChange={e=>setLocalSet({...localSet, funnelMaxInstallment: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                        <div className="space-y-5">
+                            <h3 className="text-sm font-black text-rf-red uppercase tracking-widest mb-3 flex items-center gap-2"><i className="ph ph-sliders-horizontal text-lg"></i> Simulador</h3>
+                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Crédito Min</label><input type="number" value={localSet.funnelMinCredit} onChange={e=>setLocalSet({...localSet, funnelMinCredit: e.target.value})} className="w-full text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Crédito Max</label><input type="number" value={localSet.funnelMaxCredit} onChange={e=>setLocalSet({...localSet, funnelMaxCredit: e.target.value})} className="w-full text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcela Min</label><input type="number" value={localSet.funnelMinInstallment} onChange={e=>setLocalSet({...localSet, funnelMinInstallment: e.target.value})} className="w-full text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcela Max</label><input type="number" value={localSet.funnelMaxInstallment} onChange={e=>setLocalSet({...localSet, funnelMaxInstallment: e.target.value})} className="w-full text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
                             </div>
 
-                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mt-6 mb-2">Imagens (Max 1MB)</h3>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Logo Principal (Topo e Rodapé)</label>
-                                {localSet.mainLogo && <img src={localSet.mainLogo} className="h-8 mb-2" />}
-                                <input type="file" onChange={e=>handleImg(e, 'mainLogo')} className="text-xs" />
-                                <button type="button" onClick={()=>setLocalSet({...localSet, mainLogo: null})} className="text-xs text-rf-red block mt-1">Remover</button>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Fundo Hero (Imagem Atrás da Capa)</label>
-                                {localSet.heroImage && <img src={localSet.heroImage} className="h-12 object-cover mb-2" />}
-                                <input type="file" onChange={e=>handleImg(e, 'heroImage')} className="text-xs" />
-                                <button type="button" onClick={()=>setLocalSet({...localSet, heroImage: null})} className="text-xs text-rf-red block mt-1">Remover</button>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Parceiros</label>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {localSet.partnerLogos.map((l,i)=><div key={i} className="relative bg-slate-100 p-1 rounded w-12 h-8"><img src={l} className="max-h-full max-w-full"/><button type="button" onClick={()=>setLocalSet({...localSet, partnerLogos: localSet.partnerLogos.filter((_,idx)=>idx!==i)})} className="absolute -top-1 -right-1 text-rf-red"><i className="ph ph-x-circle"></i></button></div>)}
+                            <h3 className="text-sm font-black text-rf-red uppercase tracking-widest mt-8 mb-3 flex items-center gap-2"><i className="ph ph-image text-lg"></i> Arquivos Visuais</h3>
+                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Logo Principal (Topo e Rodapé)</label>
+                                    {localSet.mainLogo && <img src={localSet.mainLogo} className="h-12 mb-3 bg-white p-2 rounded border border-slate-200 shadow-sm" />}
+                                    <div className="flex items-center gap-3">
+                                        <input type="file" onChange={e=>handleImg(e, 'mainLogo')} className="text-xs font-medium file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-slate-900 file:text-white cursor-pointer" />
+                                        <button type="button" onClick={()=>setLocalSet({...localSet, mainLogo: null})} className="text-xs font-bold text-rf-red hover:underline">Remover</button>
+                                    </div>
                                 </div>
-                                <input type="file" onChange={handlePartner} className="text-xs" />
+                                <div className="pt-4 border-t border-slate-200">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Imagem de Fundo (Capa Hero)</label>
+                                    {localSet.heroImage && <img src={localSet.heroImage} className="h-20 w-full object-cover mb-3 rounded-lg border border-slate-200 shadow-sm" />}
+                                    <div className="flex items-center gap-3">
+                                        <input type="file" onChange={e=>handleImg(e, 'heroImage')} className="text-xs font-medium file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-slate-900 file:text-white cursor-pointer" />
+                                        <button type="button" onClick={()=>setLocalSet({...localSet, heroImage: null})} className="text-xs font-bold text-rf-red hover:underline">Remover</button>
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-200">
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Logos Bancos Parceiros (Aparecem no Rodapé)</label>
+                                    <div className="flex flex-wrap gap-3 mb-3">
+                                        {localSet.partnerLogos.map((l,i)=><div key={i} className="relative bg-white border border-slate-200 p-2 rounded-lg w-16 h-10 shadow-sm flex items-center justify-center group"><img src={l} className="max-h-full max-w-full object-contain"/><button type="button" onClick={()=>setLocalSet({...localSet, partnerLogos: localSet.partnerLogos.filter((_,idx)=>idx!==i)})} className="absolute -top-2 -right-2 text-white bg-rf-red rounded-full p-1 opacity-0 group-hover:opacity-100 transition shadow-md"><i className="ph ph-x text-xs"></i></button></div>)}
+                                        <label className="border-2 border-dashed border-slate-300 rounded-lg w-16 h-10 flex items-center justify-center cursor-pointer hover:bg-slate-100 hover:border-slate-400 transition text-slate-400 hover:text-slate-600">
+                                            <input type="file" onChange={handlePartner} className="hidden" />
+                                            <i className="ph ph-plus text-lg"></i>
+                                        </label>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 font-medium">Clique no botão de + para adicionar as imagens dos bancos que trabalham com você.</p>
+                                </div>
                             </div>
                         </div>
 
                         {/* Integração Evolution API */}
-                        <div className="md:col-span-2 mt-4 pt-6 border-t border-slate-100">
-                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <i className="ph ph-plugs"></i> Integração Evolution API (WhatsApp Automação)
+                        <div className="md:col-span-2 mt-2">
+                            <h3 className="text-sm font-black text-emerald-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i className="ph ph-whatsapp-logo text-xl"></i> Automação WhatsApp (Evolution API)
                             </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-emerald-50/50 p-6 rounded-xl border border-emerald-100">
                                 <div className="md:col-span-1">
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Nome da Instância</label>
-                                    <input type="text" value={localSet.evolutionInstance || ''} onChange={e=>setLocalSet({...localSet, evolutionInstance: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" placeholder="Ex: rf_whatsapp" />
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">Nome da Instância</label>
+                                    <input type="text" value={localSet.evolutionInstance || ''} onChange={e=>setLocalSet({...localSet, evolutionInstance: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Ex: rf_whatsapp" />
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">API Key Global</label>
-                                    <input type="text" value={localSet.evolutionApiKey || ''} onChange={e=>setLocalSet({...localSet, evolutionApiKey: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm font-mono text-xs" />
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">API Key Global</label>
+                                    <input type="text" value={localSet.evolutionApiKey || ''} onChange={e=>setLocalSet({...localSet, evolutionApiKey: e.target.value})} className="w-full text-slate-900 font-mono border border-slate-200 rounded-lg p-3 text-xs outline-none focus:ring-2 focus:ring-emerald-500 bg-white" />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">URL da API</label>
-                                    <input type="text" value={localSet.evolutionApiUrl || ''} onChange={e=>setLocalSet({...localSet, evolutionApiUrl: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" />
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">URL do Servidor Evolution</label>
+                                    <input type="text" value={localSet.evolutionApiUrl || ''} onChange={e=>setLocalSet({...localSet, evolutionApiUrl: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
                                 </div>
                                 <div className="md:col-span-3">
-                                    <label className="block text-xs font-semibold text-slate-500 mb-1">
-                                        Texto do Disparo (Variáveis: <code className="text-rf-red">{'{nome}'}</code>, <code className="text-rf-red">{'{credito}'}</code>)
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                                        Texto Padrão do Disparo (Variáveis Mágicas: <code className="text-rf-red bg-white px-1 rounded">{'{nome}'}</code>, <code className="text-rf-red bg-white px-1 rounded">{'{credito}'}</code>)
                                     </label>
-                                    <textarea value={localSet.evolutionMessage || ''} onChange={e=>setLocalSet({...localSet, evolutionMessage: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea>
+                                    <textarea value={localSet.evolutionMessage || ''} onChange={e=>setLocalSet({...localSet, evolutionMessage: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" rows="3"></textarea>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div className="pt-4 text-right border-t border-slate-100"><button type="submit" className="bg-slate-900 text-white font-medium py-3 px-8 rounded text-sm hover:bg-slate-800 transition">Atualizar Site</button></div>
+                    <div className="pt-6 text-right border-t border-slate-100 flex justify-end">
+                        <button type="submit" className="bg-slate-900 text-white font-bold py-4 px-10 rounded-xl hover:bg-rf-red transition-all shadow-lg hover:shadow-xl flex items-center gap-2">
+                            <i className="ph ph-floppy-disk text-xl"></i> Salvar e Atualizar Site
+                        </button>
+                    </div>
                 </form>
             );
         }
