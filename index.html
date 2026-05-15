@@ -92,6 +92,9 @@
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type=number] { -moz-appearance: textfield; }
+        /* Hide scrollbar for tabs on mobile */
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -108,6 +111,7 @@
         };
 
         const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            if (!file) return resolve(null);
             if (file.size > 1048576) { // 1MB limite
                 alert("A imagem é muito grande. Escolha uma imagem de até 1MB.");
                 reject("Arquivo muito grande");
@@ -119,13 +123,29 @@
             reader.onerror = error => reject(error);
         });
 
-        const StatusBadge = ({ status }) => {
-            let style = 'bg-slate-100 text-slate-800 border-slate-200';
-            if (status === 'Disponível') style = 'bg-emerald-100 text-emerald-800 border-emerald-200';
-            if (status === 'Contemplada') style = 'bg-purple-100 text-purple-800 border-purple-200';
-            if (status === 'Reservada') style = 'bg-amber-100 text-amber-800 border-amber-200';
+        const safeColor = (color, fallback = '#ffffff') => {
+            return (color && /^#[0-9A-F]{6}$/i.test(color)) ? color : fallback;
+        };
+
+        const StatusBadge = ({ status, settings }) => {
+            const defaultStatuses = [
+                { name: 'Disponível', color: '#10b981' },
+                { name: 'Contemplada', color: '#8b5cf6' },
+                { name: 'Reservada', color: '#f59e0b' }
+            ];
             
-            return <span className={`inline-flex items-center px-2.5 py-1.5 rounded text-[11px] font-bold uppercase tracking-wider border ${style}`}>{status}</span>;
+            const statusesList = (settings && settings.statuses && settings.statuses.length > 0) ? settings.statuses : defaultStatuses;
+            const statusObj = statusesList.find(s => s.name === status);
+            const bgColor = statusObj ? statusObj.color : '#64748b'; 
+            
+            return (
+                <span 
+                    className="inline-flex items-center px-2.5 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider text-white shadow-sm whitespace-nowrap" 
+                    style={{ backgroundColor: safeColor(bgColor, '#64748b') }}
+                >
+                    {status}
+                </span>
+            );
         };
 
         const initialSettings = {
@@ -139,6 +159,11 @@
             heroImage: null,
             partnerLogos: [],
             headerBgColor: '#ffffff', // Cor da barra de menu
+            statuses: [
+                { name: 'Disponível', color: '#10b981' },
+                { name: 'Contemplada', color: '#8b5cf6' },
+                { name: 'Reservada', color: '#f59e0b' }
+            ],
             funnelMinCredit: 200000,
             funnelMaxCredit: 6000000,
             funnelMinInstallment: 1000,
@@ -332,18 +357,26 @@
         function ClientInterface({ letters, settings, addLead, onAdminClick }) {
             const [searchTerm, setSearchTerm] = useState('');
             const [categoryFilter, setCategoryFilter] = useState('Todas');
+            const [typeFilter, setTypeFilter] = useState('Todas'); 
             const [selectedLetter, setSelectedLetter] = useState(null);
 
             const filteredLetters = letters.filter(l => {
-                const matchSearch = l.code.includes(searchTerm) || l.category.toLowerCase().includes(searchTerm.toLowerCase()) || l.adm.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchSearch = l.code?.includes(searchTerm) || l.category?.toLowerCase().includes(searchTerm.toLowerCase()) || l.adm?.toLowerCase().includes(searchTerm.toLowerCase());
                 const matchCategory = categoryFilter === 'Todas' || l.category === categoryFilter;
-                return matchSearch && matchCategory;
+                
+                const actualType = l.tipoCota || 'Contemplada'; 
+                const matchType = typeFilter === 'Todas' || 
+                                  (typeFilter === 'Contempladas' && actualType === 'Contemplada') || 
+                                  (typeFilter === 'Em Andamento' && actualType === 'Em Andamento') ||
+                                  (typeFilter === 'Deságio' && actualType === 'Deságio');
+
+                return matchSearch && matchCategory && matchType;
             });
 
             return (
                 <div className="min-h-screen flex flex-col font-sans">
                     {/* Header Modificado com Cor Personalizável e Logo + Nome Juntos */}
-                    <header style={{ backgroundColor: settings.headerBgColor || '#ffffff' }} className="border-b border-slate-200 sticky top-0 z-50 transition-all shadow-sm">
+                    <header style={{ backgroundColor: safeColor(settings.headerBgColor, '#ffffff') }} className="border-b border-slate-200 sticky top-0 z-50 transition-all shadow-sm">
                         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                             <div className="flex items-center gap-4">
                                 {settings.mainLogo && (
@@ -405,29 +438,44 @@
 
                     {/* Tabela de Cartas e Cards Mobile */}
                     <section id="simulador" className="py-20 max-w-7xl mx-auto px-6 w-full flex-1">
-                        <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-slate-200 pb-6">
+                        <div className="mb-10 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-slate-200 pb-6">
                             <div>
                                 <h2 className="text-3xl font-bold text-slate-900 mb-2 tracking-tight">Oportunidades Disponíveis</h2>
-                                <p className="text-slate-500 font-medium text-lg">Selecione a opção ideal para o seu momento financeiro.</p>
+                                <p className="text-slate-500 font-medium text-lg">Filtre e selecione a opção ideal para o seu momento financeiro.</p>
                             </div>
                             
-                            {/* Filtros Clean */}
-                            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-                                <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-                                    {['Todas', 'Imóvel', 'Veículo'].map(cat => (
-                                        <button 
-                                            key={cat} onClick={() => setCategoryFilter(cat)}
-                                            className={`px-5 py-2 rounded text-sm font-bold transition-colors ${categoryFilter === cat ? 'bg-white text-rf-dark shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
-                                        >
-                                            {cat}
-                                        </button>
-                                    ))}
+                            {/* Filtros Duplos e Busca */}
+                            <div className="flex flex-col lg:flex-row gap-4 w-full lg:w-auto">
+                                <div className="flex flex-col sm:flex-row gap-4 overflow-x-auto hide-scrollbar pb-2 lg:pb-0">
+                                    {/* Aba de Tipo de Carta com Deságio */}
+                                    <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200 shrink-0">
+                                        {['Todas', 'Contempladas', 'Em Andamento', 'Deságio'].map(type => (
+                                            <button 
+                                                key={type} onClick={() => setTypeFilter(type)}
+                                                className={`px-4 py-2 rounded text-sm font-bold transition-colors ${typeFilter === type ? 'bg-white text-rf-dark shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                                            >
+                                                {type}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    
+                                    {/* Aba de Categoria */}
+                                    <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200 shrink-0">
+                                        {['Todas', 'Imóvel', 'Veículo', 'Serviço'].map(cat => (
+                                            <button 
+                                                key={cat} onClick={() => setCategoryFilter(cat)}
+                                                className={`px-4 py-2 rounded text-sm font-bold transition-colors ${categoryFilter === cat ? 'bg-white text-rf-dark shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="relative">
+                                <div className="relative w-full lg:w-64 shrink-0">
                                     <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
                                     <input 
                                         type="text" placeholder="Procurar código ou banco..." 
-                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-slate-900 text-sm focus:border-rf-red focus:ring-1 focus:ring-rf-red outline-none transition-colors"
+                                        className="pl-10 pr-4 py-2.5 w-full bg-white border border-slate-200 rounded-md text-slate-900 text-sm font-medium focus:border-rf-red focus:ring-1 focus:ring-rf-red outline-none transition-colors"
                                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
@@ -457,12 +505,12 @@
                                                 <td className="px-6 py-4">
                                                     {letter.bankLogo ? 
                                                         <img src={letter.bankLogo} alt="Banco" className="h-10 md:h-12 w-auto object-contain mix-blend-multiply" /> : 
-                                                        <span className="font-bold text-slate-800 text-base">{letter.adm}</span>
+                                                        <span className="font-bold text-slate-800 text-base">{letter.adm || 'Não Informado'}</span>
                                                     }
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm font-bold text-slate-900">{letter.code}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">{letter.category}</p>
+                                                    <p className="text-sm font-bold text-slate-900">{letter.code || 'S/N'}</p>
+                                                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">{letter.category} • {letter.tipoCota || 'Contemplada'}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <p className="text-lg font-black text-slate-900 tracking-tight">{formatCurrency(letter.credit)}</p>
@@ -471,10 +519,10 @@
                                                     <p className="text-sm text-slate-700 font-semibold">{formatCurrency(letter.entry)}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm font-bold text-rf-red">{letter.term}x {formatCurrency(letter.installment)}</p>
+                                                    <p className="text-sm font-bold text-rf-red">{letter.term || 0}x {formatCurrency(letter.installment)}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <StatusBadge status={letter.status} />
+                                                    <StatusBadge status={letter.status} settings={settings} />
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <button 
@@ -501,14 +549,15 @@
                                         <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 h-16 w-16 flex items-center justify-center">
-                                                    {letter.bankLogo ? <img src={letter.bankLogo} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-bold text-slate-800 text-xs text-center">{letter.adm}</span>}
+                                                    {letter.bankLogo ? <img src={letter.bankLogo} className="max-h-full max-w-full object-contain mix-blend-multiply" /> : <span className="font-bold text-slate-800 text-xs text-center">{letter.adm || '-'}</span>}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-900">Código {letter.code}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">{letter.adm} • {letter.category}</p>
+                                                    <p className="text-sm font-bold text-slate-900">Código {letter.code || 'S/N'}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{letter.adm || 'Não Informado'} • {letter.category}</p>
+                                                    <p className="text-[10px] text-slate-400 font-semibold uppercase mt-0.5">{letter.tipoCota || 'Contemplada'}</p>
                                                 </div>
                                             </div>
-                                            <StatusBadge status={letter.status} />
+                                            <StatusBadge status={letter.status} settings={settings} />
                                         </div>
                                         
                                         <div className="grid grid-cols-2 gap-4">
@@ -524,7 +573,7 @@
                                         
                                         <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 flex justify-between items-center">
                                             <span className="text-xs font-semibold text-slate-600 uppercase">Mensalidade</span>
-                                            <span className="text-base font-bold text-rf-red">{letter.term}x {formatCurrency(letter.installment)}</span>
+                                            <span className="text-base font-bold text-rf-red">{letter.term || 0}x {formatCurrency(letter.installment)}</span>
                                         </div>
 
                                         <button 
@@ -702,7 +751,8 @@
             const [name, setName] = useState(''); const [phone, setPhone] = useState(''); const [submitting, setSubmitting] = useState(false);
             const handleSubmit = (e) => {
                 e.preventDefault(); setSubmitting(true); onSubmit({ name, phone });
-                const msg = `Olá, sou *${name}*.\nTenho interesse no *Código ${letter.code}*.\n- Crédito: ${formatCurrency(letter.credit)}\n- Entrada: ${formatCurrency(letter.entry)}\n- Parcela: ${letter.term}x de ${formatCurrency(letter.installment)}\n\nMeu WhatsApp: ${phone}.`;
+                const tipoStr = letter.tipoCota ? ` (${letter.tipoCota})` : '';
+                const msg = `Olá, sou *${name}*.\nTenho interesse no *Código ${letter.code}*${tipoStr}.\n- Crédito: ${formatCurrency(letter.credit)}\n- Entrada: ${formatCurrency(letter.entry)}\n- Parcela: ${letter.term}x de ${formatCurrency(letter.installment)}\n\nMeu WhatsApp: ${phone}.`;
                 window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                 onClose();
             };
@@ -774,7 +824,7 @@
                     <main className="flex-1 p-6 md:p-10 overflow-y-auto">
                         <div className="max-w-6xl mx-auto">
                             {activeTab === 'leads' && <AdminLeads leads={leads} settings={settings} />}
-                            {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onUpdate={onUpdateLetter} onDelete={onDeleteLetter} />}
+                            {activeTab === 'cartas' && <AdminLetters letters={letters} settings={settings} onAdd={onAddLetter} onUpdate={onUpdateLetter} onDelete={onDeleteLetter} />}
                             {activeTab === 'config' && <AdminSettings settings={settings} onSave={onSaveSettings} />}
                         </div>
                     </main>
@@ -794,7 +844,6 @@
                 
                 setSendingMsg(lead.id);
                 try {
-                    // Garantir que o número comece com o DDI (55) caso o cliente esqueça
                     let phoneNum = (lead.phone || '').replace(/\D/g, '');
                     if (phoneNum.length === 10 || phoneNum.length === 11) { phoneNum = '55' + phoneNum; }
 
@@ -807,12 +856,11 @@
                         .replace('{nome}', (lead.name || '').split(' ')[0])
                         .replace('{credito}', formatCurrency(valorInteresse));
 
-                    // Payload dinâmico (Atende V1 e V2 da Evolution)
                     const payload = {
                         number: phoneNum,
-                        text: textMessage, // Formato V2
+                        text: textMessage,
                         options: { delay: 1200, presence: "composing" },
-                        textMessage: { text: textMessage } // Formato V1
+                        textMessage: { text: textMessage }
                     };
 
                     const response = await fetch(url, {
@@ -907,20 +955,24 @@
             );
         }
 
-        function AdminLetters({ letters, onAdd, onUpdate, onDelete }) {
+        function AdminLetters({ letters, settings, onAdd, onUpdate, onDelete }) {
+            const availableStatuses = (settings && settings.statuses && settings.statuses.length > 0) ? settings.statuses : [
+                { name: 'Disponível', color: '#10b981' }, { name: 'Contemplada', color: '#8b5cf6' }, { name: 'Reservada', color: '#f59e0b' }
+            ];
+
             const [showForm, setShowForm] = useState(false);
             const [editingId, setEditingId] = useState(null);
-            const initialForm = { code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' };
+            const initialForm = { code: '', category: 'Imóvel', tipoCota: 'Contemplada', credit: '', entry: '', term: '', installment: '', adm: '', status: availableStatuses[0].name, bankLogo: '' };
             const [formData, setFormData] = useState(initialForm);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
                 const processedData = {
                     ...formData, 
-                    credit: parseFloat(formData.credit), 
-                    entry: parseFloat(formData.entry), 
-                    term: parseInt(formData.term), 
-                    installment: parseFloat(formData.installment)
+                    credit: formData.credit ? parseFloat(formData.credit) : 0, 
+                    entry: formData.entry ? parseFloat(formData.entry) : 0, 
+                    term: formData.term ? parseInt(formData.term) : 0, 
+                    installment: formData.installment ? parseFloat(formData.installment) : 0
                 };
 
                 if (editingId) {
@@ -936,12 +988,13 @@
                 setFormData({
                     code: letter.code || '',
                     category: letter.category || 'Imóvel',
+                    tipoCota: letter.tipoCota || 'Contemplada',
                     credit: letter.credit || '',
                     entry: letter.entry || '',
                     term: letter.term || '',
                     installment: letter.installment || '',
                     adm: letter.adm || '',
-                    status: letter.status || 'Disponível',
+                    status: letter.status || availableStatuses[0].name,
                     bankLogo: letter.bankLogo || ''
                 });
                 setEditingId(letter.id);
@@ -970,14 +1023,23 @@
                             <div className="col-span-full mb-2"><h3 className="font-bold text-slate-900 text-base border-b border-slate-100 pb-3">{editingId ? 'Editar dados do Código' : 'Preencha os dados da Nova Carta'}</h3></div>
                             
                             {/* Linha 1 */}
-                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Código de Identificação</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 8832" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Código de Identificação</label><input type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 8832" /></div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Tipo da Carta</label>
+                                <select value={formData.tipoCota} onChange={e=>setFormData({...formData, tipoCota: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent">
+                                    <option value="Contemplada">Contemplada</option>
+                                    <option value="Em Andamento">Em Andamento</option>
+                                    <option value="Deságio">Deságio</option>
+                                </select>
+                            </div>
+
                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Status da Carta</label>
                                 <select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent">
-                                    <option>Disponível</option>
-                                    <option>Contemplada</option>
-                                    <option>Reservada</option>
+                                    {availableStatuses.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                                    {availableStatuses.length === 0 && <option value="Disponível">Disponível</option>}
                                 </select>
                             </div>
                             
@@ -986,27 +1048,27 @@
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Crédito</label>
                                 <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
                                     <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
-                                    <input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00"/>
+                                    <input type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00"/>
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Entrada</label>
                                 <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
                                     <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
-                                    <input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
+                                    <input type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Valor da Parcela</label>
                                 <div className="flex bg-slate-50 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-rf-red focus-within:border-transparent shadow-sm">
                                     <span className="flex items-center px-3 bg-slate-100 text-slate-400 font-bold text-sm border-r border-slate-200">R$</span>
-                                    <input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
+                                    <input type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-transparent p-3 text-sm font-bold text-slate-900 outline-none" placeholder="0.00" />
                                 </div>
                             </div>
 
                             {/* Informações Extras */}
-                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 180" /></div>
-                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: Itaú" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcelas (Qtd)</label><input type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 180" /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Admin. / Banco</label><input type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: Itaú" /></div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Logo do Banco (Arquivo)</label>
                                 {formData.bankLogo && <img src={formData.bankLogo} className="h-8 mb-2 border border-slate-200 p-1 rounded bg-white" />}
@@ -1042,16 +1104,17 @@
                                     letters.map(l => (
                                         <tr key={l.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="p-5">
-                                                <div className="font-bold text-slate-900 text-base">{l.code}</div>
+                                                <div className="font-bold text-slate-900 text-base">{l.code || 'S/N'}</div>
                                                 <div className="text-xs font-medium mt-1 text-slate-500 flex items-center gap-2">
                                                     {l.bankLogo && <img src={l.bankLogo} className="h-5 object-contain mix-blend-multiply" />}
-                                                    {!l.bankLogo && l.adm}
+                                                    {!l.bankLogo && (l.adm || '-')}
+                                                    <span className="opacity-50">|</span> {l.tipoCota || 'Contemplada'}
                                                 </div>
                                             </td>
                                             <td className="p-5 font-black text-slate-900 text-base">{formatCurrency(l.credit)}</td>
                                             <td className="p-5 font-bold text-slate-700">{formatCurrency(l.entry)}</td>
-                                            <td className="p-5 font-bold text-rf-red">{l.term}x {formatCurrency(l.installment)}</td>
-                                            <td className="p-5"><StatusBadge status={l.status} /></td>
+                                            <td className="p-5 font-bold text-rf-red">{l.term || 0}x {formatCurrency(l.installment)}</td>
+                                            <td className="p-5"><StatusBadge status={l.status} settings={settings} /></td>
                                             <td className="p-5 text-right">
                                                 <button onClick={() => handleEditClick(l)} className="text-slate-400 hover:text-emerald-600 bg-white border border-slate-200 hover:border-emerald-600 p-2 rounded-lg transition-colors shadow-sm mr-2" title="Editar Carta"><i className="ph ph-pencil-simple text-lg"></i></button>
                                                 <button onClick={() => { if(confirm('Excluir esta carta definitivamente?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red bg-white border border-slate-200 hover:border-rf-red p-2 rounded-lg transition-colors shadow-sm" title="Excluir"><i className="ph ph-trash text-lg"></i></button>
@@ -1080,6 +1143,15 @@
             const handleImg = async (e, key) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, [key]: await fileToBase64(f)}); };
             const handlePartner = async (e) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, partnerLogos: [...localSet.partnerLogos, await fileToBase64(f)]}); };
 
+            // Funções para gerenciar os Status Personalizados
+            const addStatus = () => setLocalSet({...localSet, statuses: [...(localSet.statuses || []), { name: 'Novo Status', color: '#64748b' }]});
+            const updateStatus = (index, field, value) => {
+                const newSt = [...localSet.statuses];
+                newSt[index][field] = value;
+                setLocalSet({...localSet, statuses: newSt});
+            };
+            const removeStatus = (index) => setLocalSet({...localSet, statuses: localSet.statuses.filter((_, i) => i !== index)});
+
             const handleTestEvolutionApi = async () => {
                 if (!localSet.evolutionInstance || !localSet.evolutionApiKey || !localSet.evolutionApiUrl) {
                     alert("Por favor, preencha os 3 campos obrigatórios da API (Nome da Instância, API Key e URL) antes de testar.");
@@ -1091,7 +1163,6 @@
 
                 setTestingApi(true);
                 try {
-                    // Adiciona o código do país caso tenha sido digitado apenas o DDD
                     let phoneNum = testPhone.replace(/\D/g, '');
                     if (phoneNum.length === 10 || phoneNum.length === 11) { phoneNum = '55' + phoneNum; }
 
@@ -1101,7 +1172,6 @@
                     
                     const msgTeste = "✅ Olá! Este é um teste automático do seu Painel RF Consórcio. Sua integração com a Evolution API está funcionando perfeitamente!";
 
-                    // Payload Dinâmico para V1 e V2 da Evolution
                     const payload = {
                         number: phoneNum,
                         text: msgTeste,
@@ -1155,7 +1225,7 @@
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">WhatsApp (Recepção de Leads)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" placeholder="Ex: 5511999999999" /></div>
                                 <div className="flex gap-4">
                                     <div className="flex-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Título Capa (Hero)</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
-                                    <div className="w-32"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Cor do Menu</label><div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden h-[46px]"><input type="color" value={localSet.headerBgColor} onChange={e=>setLocalSet({...localSet, headerBgColor: e.target.value})} className="w-full h-full cursor-pointer opacity-0 absolute" /><div className="w-full h-full pointer-events-none" style={{backgroundColor: localSet.headerBgColor}}></div></div></div>
+                                    <div className="w-32"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Cor do Menu</label><div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden h-[46px] relative"><input type="color" value={safeColor(localSet.headerBgColor, '#ffffff')} onChange={e=>setLocalSet({...localSet, headerBgColor: e.target.value})} className="absolute inset-0 w-[200%] h-[200%] -top-1/2 -left-1/2 cursor-pointer opacity-0" /><div className="w-full h-full pointer-events-none" style={{backgroundColor: safeColor(localSet.headerBgColor, '#ffffff')}}></div></div></div>
                                 </div>
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Subtítulo Capa</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" rows="2"></textarea></div>
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Texto Rodapé / A Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" rows="3"></textarea></div>
@@ -1200,6 +1270,31 @@
                                     </div>
                                     <p className="text-[10px] text-slate-500 font-medium">Clique no botão de + para adicionar as imagens dos bancos que trabalham com você.</p>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Integração de Status Personalizado */}
+                        <div className="md:col-span-2 mt-2">
+                            <h3 className="text-sm font-black text-rf-red uppercase tracking-widest mb-3 flex items-center gap-2">
+                                <i className="ph ph-tag text-xl"></i> Status das Cartas Personalizados
+                            </h3>
+                            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-inner">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                    {(localSet.statuses || []).map((st, i) => (
+                                        <div key={i} className="flex gap-3 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                            <input type="text" value={st.name} onChange={e => updateStatus(i, 'name', e.target.value)} className="flex-1 text-slate-900 font-bold border-none outline-none focus:ring-0 text-sm p-0" placeholder="Nome do Status" />
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shadow-sm relative shrink-0">
+                                                <input type="color" value={safeColor(st.color, '#000000')} onChange={e => updateStatus(i, 'color', e.target.value)} className="absolute inset-0 w-[200%] h-[200%] -top-1/2 -left-1/2 cursor-pointer opacity-0" />
+                                                <div className="w-full h-full pointer-events-none" style={{ backgroundColor: safeColor(st.color, '#000000') }}></div>
+                                            </div>
+                                            <button type="button" onClick={() => removeStatus(i)} className="text-slate-400 hover:text-rf-red transition-colors shrink-0 p-1"><i className="ph ph-trash text-lg"></i></button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button type="button" onClick={addStatus} className="text-sm font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1.5 mt-5 bg-emerald-50 px-4 py-2 rounded-lg border border-emerald-100 transition-colors">
+                                    <i className="ph ph-plus-circle text-lg"></i> Criar Novo Status
+                                </button>
+                                <p className="text-xs text-slate-500 font-medium mt-3">Adicione os status que você usa na sua operação. As cores escolhidas aparecerão nas etiquetas (badges) do site e do sistema.</p>
                             </div>
                         </div>
 
