@@ -270,6 +270,13 @@
                 } catch (e) { console.error("Erro ao salvar carta", e); }
             };
 
+            const handleUpdateLetter = async (id, updatedData) => {
+                if (!firebaseReady || !user) return;
+                try {
+                    await window.fb.updateDoc(window.fb.doc(window.db, 'artifacts', appId, 'public', 'data', 'letters', id), updatedData);
+                } catch (e) { console.error("Erro ao atualizar carta", e); }
+            };
+
             const handleDeleteLetter = async (id) => {
                 if (!firebaseReady || !user) return;
                 try {
@@ -307,6 +314,7 @@
                 return <AdminPanel 
                     letters={letters} 
                     onAddLetter={handleAddLetter}
+                    onUpdateLetter={handleUpdateLetter}
                     onDeleteLetter={handleDeleteLetter}
                     leads={leads} 
                     settings={settings} 
@@ -746,7 +754,7 @@
             );
         }
 
-        function AdminPanel({ letters, onAddLetter, onDeleteLetter, leads, settings, onSaveSettings, onLogout }) {
+        function AdminPanel({ letters, onAddLetter, onUpdateLetter, onDeleteLetter, leads, settings, onSaveSettings, onLogout }) {
             const [activeTab, setActiveTab] = useState('cartas'); // Mudado padrão para iniciar em Cartas
             return (
                 <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
@@ -766,7 +774,7 @@
                     <main className="flex-1 p-6 md:p-10 overflow-y-auto">
                         <div className="max-w-6xl mx-auto">
                             {activeTab === 'leads' && <AdminLeads leads={leads} settings={settings} />}
-                            {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onDelete={onDeleteLetter} />}
+                            {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onUpdate={onUpdateLetter} onDelete={onDeleteLetter} />}
                             {activeTab === 'config' && <AdminSettings settings={settings} onSave={onSaveSettings} />}
                         </div>
                     </main>
@@ -828,56 +836,51 @@
                                         <td className="px-6 py-5 text-xs text-slate-500">
                                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold mb-2 ${lead.type === 'Funil' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                                                 {lead.type === 'Funil' ? <i className="ph ph-sliders-horizontal"></i> : <i className="ph ph-list-bullets"></i>} {lead.type}
-                                            </span><br/>
-                                            {new Date(lead.timestamp).toLocaleString()}
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <p className="font-bold text-slate-900 text-base">{lead.name}</p>
-                                            <a href={`https://wa.me/55${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 mt-1 font-bold"><i className="ph ph-whatsapp-logo text-lg"></i> {lead.phone}</a>
-                                        </td>
-                                        <td className="px-6 py-5 text-sm text-slate-700">
-                                            <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
-                                                {lead.type === 'Funil' ? 
-                                                    <>
-                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Desejado</p>
-                                                        <p className="font-black text-slate-900">{formatCurrency(lead.desiredCredit)}</p>
-                                                        <p className="text-xs font-bold text-rf-red mt-1">Parcela: {formatCurrency(lead.desiredInstallment)}</p>
-                                                    </> 
-                                                    : 
-                                                    <>
-                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Código {lead.letterId}</p>
-                                                        <p className="font-black text-slate-900">{formatCurrency(lead.interestedCredit)}</p>
-                                                    </>
-                                                }
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5 text-right align-middle">
-                                            <button 
-                                                onClick={() => sendEvolutionMessage(lead)}
-                                                disabled={sendingMsg === lead.id}
-                                                className="bg-slate-900 hover:bg-rf-red text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow-md flex items-center gap-2 ml-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                                            >
-                                                <i className="ph ph-paper-plane-tilt text-base"></i> 
-                                                {sendingMsg === lead.id ? 'Enviando...' : 'Disparar API'}
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        }
-
-        function AdminLetters({ letters, onAdd, onDelete }) {
+        function AdminLetters({ letters, onAdd, onUpdate, onDelete }) {
             const [showForm, setShowForm] = useState(false);
-            const [formData, setFormData] = useState({ code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' });
+            const [editingId, setEditingId] = useState(null);
+            const initialForm = { code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' };
+            const [formData, setFormData] = useState(initialForm);
 
             const handleSubmit = async (e) => {
                 e.preventDefault();
-                await onAdd({ ...formData, credit: parseFloat(formData.credit), entry: parseFloat(formData.entry), term: parseInt(formData.term), installment: parseFloat(formData.installment) });
-                setShowForm(false); setFormData({ code: '', category: 'Imóvel', credit: '', entry: '', term: '', installment: '', adm: '', status: 'Disponível', bankLogo: '' });
+                const processedData = {
+                    ...formData, 
+                    credit: parseFloat(formData.credit), 
+                    entry: parseFloat(formData.entry), 
+                    term: parseInt(formData.term), 
+                    installment: parseFloat(formData.installment)
+                };
+
+                if (editingId) {
+                    await onUpdate(editingId, processedData);
+                } else {
+                    await onAdd(processedData);
+                }
+                
+                handleCancel();
+            };
+
+            const handleEditClick = (letter) => {
+                setFormData({
+                    code: letter.code || '',
+                    category: letter.category || 'Imóvel',
+                    credit: letter.credit || '',
+                    entry: letter.entry || '',
+                    term: letter.term || '',
+                    installment: letter.installment || '',
+                    adm: letter.adm || '',
+                    status: letter.status || 'Disponível',
+                    bankLogo: letter.bankLogo || ''
+                });
+                setEditingId(letter.id);
+                setShowForm(true);
+            };
+
+            const handleCancel = () => {
+                setShowForm(false); 
+                setEditingId(null);
+                setFormData(initialForm);
             };
 
             const handleFile = async (e) => { const file = e.target.files[0]; if(file) setFormData({...formData, bankLogo: await fileToBase64(file)}); };
@@ -886,14 +889,14 @@
                 <div className="space-y-6">
                     <div className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                         <h2 className="text-xl font-bold text-slate-900">Banco de Cartas</h2>
-                        <button onClick={() => setShowForm(!showForm)} className="bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rf-red transition-colors flex items-center gap-2 shadow-md">
+                        <button onClick={showForm ? handleCancel : () => setShowForm(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-rf-red transition-colors flex items-center gap-2 shadow-md">
                             <i className={`ph ${showForm ? 'ph-x' : 'ph-plus'} text-lg`}></i> {showForm ? 'Cancelar' : 'Cadastrar Novo Código'}
                         </button>
                     </div>
 
                     {showForm && (
                         <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4">
-                            <div className="col-span-full mb-2"><h3 className="font-bold text-slate-900 text-base border-b border-slate-100 pb-3">Preencha os dados da Nova Carta</h3></div>
+                            <div className="col-span-full mb-2"><h3 className="font-bold text-slate-900 text-base border-b border-slate-100 pb-3">{editingId ? 'Editar dados do Código' : 'Preencha os dados da Nova Carta'}</h3></div>
                             
                             {/* Linha 1 */}
                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Código de Identificação</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 8832" /></div>
@@ -933,11 +936,15 @@
                             {/* Informações Extras */}
                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: 180" /></div>
                             <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 font-bold border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red focus:border-transparent" placeholder="Ex: Itaú" /></div>
-                            <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Logo do Banco (Arquivo)</label><input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-slate-900 file:text-white cursor-pointer" /></div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Logo do Banco (Arquivo)</label>
+                                {formData.bankLogo && <img src={formData.bankLogo} className="h-8 mb-2 border border-slate-200 p-1 rounded bg-white" />}
+                                <input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-slate-900 file:text-white cursor-pointer" />
+                            </div>
                             
                             <div className="col-span-full mt-4 pt-4 border-t border-slate-100 flex justify-end">
                                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-10 rounded-xl shadow-md transition-colors text-sm flex items-center gap-2">
-                                    <i className="ph ph-check-circle text-lg"></i> Salvar no Banco
+                                    <i className="ph ph-check-circle text-lg"></i> {editingId ? 'Salvar Alterações' : 'Salvar no Banco'}
                                 </button>
                             </div>
                         </form>
@@ -975,7 +982,8 @@
                                             <td className="p-5 font-bold text-rf-red">{l.term}x {formatCurrency(l.installment)}</td>
                                             <td className="p-5"><StatusBadge status={l.status} /></td>
                                             <td className="p-5 text-right">
-                                                <button onClick={() => { if(confirm('Excluir esta carta definitivamente?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red bg-white border border-slate-200 hover:border-rf-red p-2 rounded-lg transition-colors shadow-sm"><i className="ph ph-trash text-lg"></i></button>
+                                                <button onClick={() => handleEditClick(l)} className="text-slate-400 hover:text-emerald-600 bg-white border border-slate-200 hover:border-emerald-600 p-2 rounded-lg transition-colors shadow-sm mr-2" title="Editar Carta"><i className="ph ph-pencil-simple text-lg"></i></button>
+                                                <button onClick={() => { if(confirm('Excluir esta carta definitivamente?')) onDelete(l.id); }} className="text-slate-400 hover:text-rf-red bg-white border border-slate-200 hover:border-rf-red p-2 rounded-lg transition-colors shadow-sm" title="Excluir"><i className="ph ph-trash text-lg"></i></button>
                                             </td>
                                         </tr>
                                     )))}
@@ -1011,7 +1019,10 @@
                         <div className="space-y-5">
                             <h3 className="text-sm font-black text-rf-red uppercase tracking-widest mb-3 flex items-center gap-2"><i className="ph ph-text-aa text-lg"></i> Comunicação</h3>
                             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
-                                <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
+                                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">CNPJ</label><input type="text" value={localSet.cnpj} onChange={e=>setLocalSet({...localSet, cnpj: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" placeholder="00.000.000/0001-00" /></div>
+                                </div>
                                 <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">WhatsApp (Recepção de Leads)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" placeholder="Ex: 5511999999999" /></div>
                                 <div className="flex gap-4">
                                     <div className="flex-1"><label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Título Capa (Hero)</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-rf-red" /></div>
