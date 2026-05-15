@@ -125,10 +125,15 @@
             mainLogo: null,
             heroImage: null,
             partnerLogos: [],
+            headerBgColor: '#ffffff', // Cor da barra de menu
             funnelMinCredit: 200000,
             funnelMaxCredit: 6000000,
             funnelMinInstallment: 1000,
-            funnelMaxInstallment: 50000
+            funnelMaxInstallment: 50000,
+            evolutionApiUrl: 'https://evolution.bewe.com.br',
+            evolutionApiKey: 'WgDbeKI1SdLhBVllTrpbneFXQt5OiZD3hJc66riSastgY8R675bbf07eb479',
+            evolutionInstance: '',
+            evolutionMessage: 'Olá {nome}, recebemos sua simulação de consórcio em nosso site no valor de {credito}. Como posso ajudar?'
         };
 
         // --- COMPONENTE PRINCIPAL ---
@@ -200,7 +205,8 @@
                 // 1. Ouvir Configurações
                 const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        setSettings(docSnap.data());
+                        // Mescla para não perder campos novos caso o banco seja antigo
+                        setSettings({ ...initialSettings, ...docSnap.data() });
                     } else {
                         setDoc(settingsRef, initialSettings).catch(e => console.log("Erro ao inicializar settings", e));
                     }
@@ -316,12 +322,13 @@
 
             return (
                 <div className="min-h-screen flex flex-col font-sans">
-                    {/* Header Minimalista */}
-                    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 transition-all">
+                    {/* Header Modificado com Cor Personalizável */}
+                    <header style={{ backgroundColor: settings.headerBgColor || '#ffffff' }} className="border-b border-slate-200 sticky top-0 z-50 transition-all">
                         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 {settings.mainLogo ? (
-                                    <img src={settings.mainLogo} alt="Logo" className="h-10 object-contain" />
+                                    // Aumentado a altura da logo do topo
+                                    <img src={settings.mainLogo} alt="Logo" className="h-16 md:h-20 object-contain drop-shadow-sm" />
                                 ) : (
                                     <div className="flex items-center gap-2">
                                         <i className="ph ph-buildings text-2xl text-rf-red"></i>
@@ -332,8 +339,8 @@
                                 )}
                             </div>
                             <div className="hidden md:flex items-center gap-8">
-                                <a href="#simulador" className="text-sm font-medium text-slate-600 hover:text-rf-red transition-colors">Oportunidades</a>
-                                <a href="#sobre" className="text-sm font-medium text-slate-600 hover:text-rf-red transition-colors">A Empresa</a>
+                                <a href="#simulador" className="text-sm font-medium text-slate-700 hover:text-rf-red transition-colors">Oportunidades</a>
+                                <a href="#sobre" className="text-sm font-medium text-slate-700 hover:text-rf-red transition-colors">A Empresa</a>
                                 <a href={`https://wa.me/${settings.adminPhone}`} target="_blank" rel="noreferrer" 
                                 className="bg-rf-red text-white px-5 py-2.5 rounded text-sm font-medium hover:bg-red-800 transition-colors flex items-center gap-2 shadow-sm">
                                     <i className="ph ph-whatsapp-logo text-lg"></i> Fale Conosco
@@ -345,25 +352,26 @@
                     {/* Hero Section */}
                     <section className="relative bg-rf-dark text-white pt-20 pb-28 overflow-hidden">
                         {settings.heroImage && (
-                            <div className="absolute inset-0 z-0 opacity-10">
-                                <img src={settings.heroImage} alt="Fundo" className="w-full h-full object-cover filter grayscale" />
+                            // Removido filtro de cinza e aumentada a opacidade da imagem
+                            <div className="absolute inset-0 z-0 opacity-40">
+                                <img src={settings.heroImage} alt="Fundo" className="w-full h-full object-cover" />
                             </div>
                         )}
                         <div className="max-w-7xl mx-auto px-6 relative z-10">
                             <div className="grid lg:grid-cols-2 gap-16 items-center">
                                 {/* Textos */}
-                                <div className="text-center lg:text-left">
+                                <div className="text-center lg:text-left drop-shadow-lg">
                                     <h1 className="text-4xl md:text-5xl font-semibold mb-6 leading-tight text-white tracking-tight">
                                         {settings.heroTitle}
                                     </h1>
-                                    <p className="text-lg text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
+                                    <p className="text-lg text-slate-200 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed font-light">
                                         {settings.heroSubtitle}
                                     </p>
                                     <div className="flex flex-col sm:flex-row gap-6 justify-center lg:justify-start">
-                                        <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm">
                                             <i className="ph ph-medal text-xl text-rf-red"></i> Especialistas em Alto Padrão
                                         </div>
-                                        <div className="flex items-center gap-2 text-slate-300 text-sm font-medium">
+                                        <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 px-4 py-2 rounded-lg backdrop-blur-sm">
                                             <i className="ph ph-shield-check text-xl text-rf-red"></i> Negociação Segura
                                         </div>
                                     </div>
@@ -401,7 +409,7 @@
                                     <i className="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
                                     <input 
                                         type="text" placeholder="Buscar código ou banco..." 
-                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-sm focus:border-slate-400 outline-none transition-colors"
+                                        className="pl-10 pr-4 py-2.5 w-full sm:w-64 bg-white border border-slate-200 rounded-md text-slate-900 text-sm focus:border-slate-400 outline-none transition-colors"
                                         value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </div>
@@ -477,7 +485,8 @@
                                 <div className="md:col-span-5">
                                     <div className="mb-6">
                                         {settings.mainLogo ? (
-                                            <img src={settings.mainLogo} alt="Logo" className="h-8 object-contain grayscale opacity-60" />
+                                            // Aumentado a altura e removido escala de cinza/opacidade do rodapé
+                                            <img src={settings.mainLogo} alt="Logo" className="h-16 object-contain" />
                                         ) : (
                                             <span className="text-lg font-semibold text-slate-900 uppercase tracking-wide">{settings.companyName}</span>
                                         )}
@@ -493,7 +502,7 @@
                                     {settings.partnerLogos && settings.partnerLogos.length > 0 ? (
                                         <div className="flex flex-wrap gap-4">
                                             {settings.partnerLogos.map((logo, i) => (
-                                                <div key={i} className="h-10 w-20 flex items-center justify-start opacity-50 grayscale">
+                                                <div key={i} className="h-10 w-20 flex items-center justify-start opacity-70 grayscale hover:grayscale-0 hover:opacity-100 transition">
                                                     <img src={logo} alt="Parceiro" className="max-h-full max-w-full object-contain mix-blend-multiply" />
                                                 </div>
                                             ))}
@@ -601,8 +610,9 @@
                                 <h3 className="text-xl font-semibold text-slate-900">Contato</h3>
                             </div>
                             <form onSubmit={handleFinish} className="space-y-4">
-                                <input required type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="Nome completo" />
-                                <input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="WhatsApp" />
+                                {/* Adicionada cor text-slate-900 para não ficar branco */}
+                                <input required type="text" value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="Nome completo" />
+                                <input required type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 focus:border-slate-400 outline-none text-sm" placeholder="WhatsApp" />
                                 <button type="submit" disabled={loading} className="w-full bg-[#128C7E] hover:bg-[#075E54] text-white font-medium py-3.5 rounded transition-colors flex items-center justify-center gap-2 mt-4 shadow-sm">
                                     <i className="ph ph-whatsapp-logo text-lg"></i> {loading ? 'Aguarde...' : 'Receber Opções'}
                                 </button>
@@ -647,8 +657,9 @@
                             <p className="text-sm text-slate-500 mt-2 font-medium">Cota {letter.code} • {letter.term}x {formatCurrency(letter.installment)}</p>
                             
                             <form onSubmit={handleSubmit} className="mt-8 space-y-3">
-                                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu nome" />
-                                <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu WhatsApp" />
+                                {/* Adicionada cor text-slate-900 */}
+                                <input required type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu nome" />
+                                <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-3 text-sm outline-none focus:border-slate-400" placeholder="Seu WhatsApp" />
                                 <button type="submit" disabled={submitting} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3 rounded flex items-center justify-center gap-2 mt-2 transition-colors">
                                     {submitting ? 'Enviando...' : 'Falar com Consultor'} <i className="ph ph-arrow-right"></i>
                                 </button>
@@ -672,7 +683,7 @@
                         <i className="ph ph-lock-key text-4xl text-slate-400 mb-4 inline-block"></i>
                         <h2 className="text-xl font-semibold text-slate-900 mb-6">Acesso Administrativo</h2>
                         <form onSubmit={handleLogin} className="space-y-4">
-                            <input type="password" placeholder="Senha" value={pwd} onChange={e=>setPwd(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded text-center text-lg tracking-widest outline-none focus:border-slate-400" />
+                            <input type="password" placeholder="Senha" value={pwd} onChange={e=>setPwd(e.target.value)} className="w-full p-3 bg-slate-50 text-slate-900 border border-slate-200 rounded text-center text-lg tracking-widest outline-none focus:border-slate-400" />
                             <button type="submit" className="w-full bg-slate-900 text-white font-medium py-3 rounded hover:bg-slate-800 transition-colors">Entrar</button>
                         </form>
                     </div>
@@ -699,7 +710,7 @@
                     </aside>
                     <main className="flex-1 p-6 md:p-10 overflow-y-auto">
                         <div className="max-w-5xl mx-auto">
-                            {activeTab === 'leads' && <AdminLeads leads={leads} />}
+                            {activeTab === 'leads' && <AdminLeads leads={leads} settings={settings} />}
                             {activeTab === 'cartas' && <AdminLetters letters={letters} onAdd={onAddLetter} onDelete={onDeleteLetter} />}
                             {activeTab === 'config' && <AdminSettings settings={settings} onSave={onSaveSettings} />}
                         </div>
@@ -709,7 +720,53 @@
         }
 
         // --- SUB-TABS ADMIN ---
-        function AdminLeads({ leads }) {
+        function AdminLeads({ leads, settings }) {
+            const [sendingMsg, setSendingMsg] = useState(null);
+
+            // FUNÇÃO PARA ENVIAR MENSAGEM VIA EVOLUTION API
+            const sendEvolutionMessage = async (lead) => {
+                if (!settings.evolutionInstance) {
+                    alert("Atenção! Vá em 'Site & Config.' e preencha o campo 'Nome da Instância' no Evolution API para poder disparar mensagens.");
+                    return;
+                }
+
+                setSendingMsg(lead.id);
+
+                try {
+                    const url = `${settings.evolutionApiUrl}/message/sendText/${settings.evolutionInstance}`;
+                    
+                    // Substitui as variáveis no texto pre-configurado
+                    const valorInteresse = lead.type === 'Funil' ? lead.desiredCredit : lead.interestedCredit;
+                    let textMessage = settings.evolutionMessage
+                        .replace('{nome}', lead.name.split(' ')[0])
+                        .replace('{credito}', formatCurrency(valorInteresse));
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': settings.evolutionApiKey
+                        },
+                        body: JSON.stringify({
+                            number: lead.phone.replace(/\D/g, ''), // Limpa o telefone
+                            options: { delay: 1200, presence: "composing" },
+                            textMessage: { text: textMessage }
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        alert(`Mensagem enviada com sucesso para ${lead.name}!`);
+                    } else {
+                        const err = await response.json();
+                        alert("Falha ao enviar: " + (err.response?.message || "Verifique as configurações e a instância da API."));
+                    }
+                } catch (error) {
+                    console.error("Erro Evolution:", error);
+                    alert("Erro de conexão com a API Evolution. Verifique a URL e a conectividade.");
+                }
+                setSendingMsg(null);
+            };
+
             return (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200">
                     <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -719,10 +776,15 @@
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                                <tr><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Origem / Data</th><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Cliente</th><th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Interesse Exato</th></tr>
+                                <tr>
+                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Origem / Data</th>
+                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Cliente</th>
+                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider">Interesse Exato</th>
+                                    <th className="px-6 py-4 font-medium text-xs uppercase tracking-wider text-right">Ação Rápida</th>
+                                </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {leads.length === 0 ? <tr><td colSpan="3" className="p-8 text-center text-slate-400">Nenhum dado registrado.</td></tr> : leads.map((lead) => (
+                                {leads.length === 0 ? <tr><td colSpan="4" className="p-8 text-center text-slate-400">Nenhum dado registrado.</td></tr> : leads.map((lead) => (
                                     <tr key={lead.id} className="hover:bg-slate-50">
                                         <td className="px-6 py-4 text-xs text-slate-500">
                                             <span className="font-semibold text-slate-700 block mb-1">{lead.type}</span>
@@ -734,6 +796,17 @@
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-700">
                                             {lead.type === 'Funil' ? <div>Crédito: <b>{formatCurrency(lead.desiredCredit)}</b><br/>Parcela: {formatCurrency(lead.desiredInstallment)}</div> : <div>Cota: <b>{lead.letterId}</b><br/>{formatCurrency(lead.interestedCredit)}</div>}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {/* Botão de Disparo Evolution API */}
+                                            <button 
+                                                onClick={() => sendEvolutionMessage(lead)}
+                                                disabled={sendingMsg === lead.id}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md text-xs font-medium transition flex items-center gap-1.5 ml-auto disabled:opacity-50"
+                                            >
+                                                <i className="ph ph-paper-plane-tilt text-sm"></i> 
+                                                {sendingMsg === lead.id ? 'Enviando...' : 'Disparar Mensagem'}
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}
@@ -767,14 +840,14 @@
 
                     {showForm && (
                         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cota</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Status</label><select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none"><option>Disponível</option><option>Reservada</option></select></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito (R$)</label><input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Entrada (R$)</label><input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Valor da Parcela (R$)</label><input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Cota</label><input required type="text" value={formData.code} onChange={e=>setFormData({...formData, code: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Categoria</label><select value={formData.category} onChange={e=>setFormData({...formData, category: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none"><option>Imóvel</option><option>Veículo</option><option>Serviço</option></select></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Status</label><select value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none"><option>Disponível</option><option>Reservada</option></select></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito (R$)</label><input required type="number" step="0.01" value={formData.credit} onChange={e=>setFormData({...formData, credit: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Entrada (R$)</label><input required type="number" step="0.01" value={formData.entry} onChange={e=>setFormData({...formData, entry: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcelas (Qtd)</label><input required type="number" value={formData.term} onChange={e=>setFormData({...formData, term: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Valor da Parcela (R$)</label><input required type="number" step="0.01" value={formData.installment} onChange={e=>setFormData({...formData, installment: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Admin. / Banco</label><input required type="text" value={formData.adm} onChange={e=>setFormData({...formData, adm: e.target.value})} className="w-full bg-slate-50 text-slate-900 border border-slate-200 rounded p-2 text-sm outline-none" /></div>
                             <div><label className="block text-xs font-semibold text-slate-500 mb-1">Logo Admin (Até 1MB)</label><input type="file" accept="image/*" onChange={handleFile} className="w-full text-xs" /></div>
                             <div className="col-span-full mt-2 text-right"><button type="submit" className="bg-slate-900 text-white font-medium py-2 px-6 rounded text-sm hover:bg-slate-800">Salvar Registro</button></div>
                         </form>
@@ -823,31 +896,34 @@
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Comunicação</h3>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">WhatsApp (com DDD, só números)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Título Hero</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Subtítulo Hero</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea></div>
-                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Texto Rodapé / Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" rows="3"></textarea></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nome Fantasia</label><input type="text" value={localSet.companyName} onChange={e=>setLocalSet({...localSet, companyName: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">WhatsApp (com DDD, só números)</label><input type="text" value={localSet.adminPhone} onChange={e=>setLocalSet({...localSet, adminPhone: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                            <div className="flex gap-4">
+                                <div className="flex-1"><label className="block text-xs font-semibold text-slate-500 mb-1">Título Hero</label><input type="text" value={localSet.heroTitle} onChange={e=>setLocalSet({...localSet, heroTitle: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div className="w-24"><label className="block text-xs font-semibold text-slate-500 mb-1">Cor Menu</label><input type="color" value={localSet.headerBgColor} onChange={e=>setLocalSet({...localSet, headerBgColor: e.target.value})} className="w-full h-10 border border-slate-200 rounded p-1 cursor-pointer" /></div>
+                            </div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Subtítulo Hero</label><textarea value={localSet.heroSubtitle} onChange={e=>setLocalSet({...localSet, heroSubtitle: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea></div>
+                            <div><label className="block text-xs font-semibold text-slate-500 mb-1">Texto Rodapé / Empresa</label><textarea value={localSet.aboutText} onChange={e=>setLocalSet({...localSet, aboutText: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="3"></textarea></div>
                         </div>
 
                         <div className="space-y-4">
                             <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-2">Simulador</h3>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Min</label><input type="number" value={localSet.funnelMinCredit} onChange={e=>setLocalSet({...localSet, funnelMinCredit: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Max</label><input type="number" value={localSet.funnelMaxCredit} onChange={e=>setLocalSet({...localSet, funnelMaxCredit: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Min</label><input type="number" value={localSet.funnelMinInstallment} onChange={e=>setLocalSet({...localSet, funnelMinInstallment: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
-                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Max</label><input type="number" value={localSet.funnelMaxInstallment} onChange={e=>setLocalSet({...localSet, funnelMaxInstallment: e.target.value})} className="w-full border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Min</label><input type="number" value={localSet.funnelMinCredit} onChange={e=>setLocalSet({...localSet, funnelMinCredit: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Crédito Max</label><input type="number" value={localSet.funnelMaxCredit} onChange={e=>setLocalSet({...localSet, funnelMaxCredit: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Min</label><input type="number" value={localSet.funnelMinInstallment} onChange={e=>setLocalSet({...localSet, funnelMinInstallment: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
+                                <div><label className="block text-xs font-semibold text-slate-500 mb-1">Parcela Max</label><input type="number" value={localSet.funnelMaxInstallment} onChange={e=>setLocalSet({...localSet, funnelMaxInstallment: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" /></div>
                             </div>
 
                             <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mt-6 mb-2">Imagens (Max 1MB)</h3>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Logo Principal</label>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Logo Principal (Topo e Rodapé)</label>
                                 {localSet.mainLogo && <img src={localSet.mainLogo} className="h-8 mb-2" />}
                                 <input type="file" onChange={e=>handleImg(e, 'mainLogo')} className="text-xs" />
                                 <button type="button" onClick={()=>setLocalSet({...localSet, mainLogo: null})} className="text-xs text-rf-red block mt-1">Remover</button>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-slate-500 mb-1">Fundo Hero</label>
+                                <label className="block text-xs font-semibold text-slate-500 mb-1">Fundo Hero (Imagem Atrás da Capa)</label>
                                 {localSet.heroImage && <img src={localSet.heroImage} className="h-12 object-cover mb-2" />}
                                 <input type="file" onChange={e=>handleImg(e, 'heroImage')} className="text-xs" />
                                 <button type="button" onClick={()=>setLocalSet({...localSet, heroImage: null})} className="text-xs text-rf-red block mt-1">Remover</button>
@@ -858,6 +934,33 @@
                                     {localSet.partnerLogos.map((l,i)=><div key={i} className="relative bg-slate-100 p-1 rounded w-12 h-8"><img src={l} className="max-h-full max-w-full"/><button type="button" onClick={()=>setLocalSet({...localSet, partnerLogos: localSet.partnerLogos.filter((_,idx)=>idx!==i)})} className="absolute -top-1 -right-1 text-rf-red"><i className="ph ph-x-circle"></i></button></div>)}
                                 </div>
                                 <input type="file" onChange={handlePartner} className="text-xs" />
+                            </div>
+                        </div>
+
+                        {/* Integração Evolution API */}
+                        <div className="md:col-span-2 mt-4 pt-6 border-t border-slate-100">
+                            <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <i className="ph ph-plugs"></i> Integração Evolution API (WhatsApp Automação)
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="md:col-span-1">
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">Nome da Instância</label>
+                                    <input type="text" value={localSet.evolutionInstance || ''} onChange={e=>setLocalSet({...localSet, evolutionInstance: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" placeholder="Ex: rf_whatsapp" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">API Key Global</label>
+                                    <input type="text" value={localSet.evolutionApiKey || ''} onChange={e=>setLocalSet({...localSet, evolutionApiKey: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm font-mono text-xs" />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">URL da API</label>
+                                    <input type="text" value={localSet.evolutionApiUrl || ''} onChange={e=>setLocalSet({...localSet, evolutionApiUrl: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" />
+                                </div>
+                                <div className="md:col-span-3">
+                                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                                        Texto do Disparo (Variáveis: <code className="text-rf-red">{'{nome}'}</code>, <code className="text-rf-red">{'{credito}'}</code>)
+                                    </label>
+                                    <textarea value={localSet.evolutionMessage || ''} onChange={e=>setLocalSet({...localSet, evolutionMessage: e.target.value})} className="w-full text-slate-900 border border-slate-200 rounded p-2.5 text-sm" rows="2"></textarea>
+                                </div>
                             </div>
                         </div>
                     </div>
