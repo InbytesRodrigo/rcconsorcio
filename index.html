@@ -561,10 +561,10 @@
                                 <div className="md:col-span-4">
                                     <h3 className="text-slate-900 text-sm font-bold mb-6 uppercase tracking-widest border-b border-slate-100 pb-2">Bancos Parceiros</h3>
                                     {settings.partnerLogos && settings.partnerLogos.length > 0 ? (
-                                        <div className="flex flex-wrap gap-4">
+                                        <div className="flex flex-wrap gap-2 md:gap-3 items-center">
                                             {settings.partnerLogos.map((logo, i) => (
-                                                <div key={i} className="h-12 w-24 flex items-center justify-start transition-transform hover:scale-105">
-                                                    <img src={logo} alt="Parceiro" className="max-h-full max-w-full object-contain drop-shadow-sm mix-blend-multiply" />
+                                                <div key={i} className="h-8 md:h-10 flex items-center justify-center transition-transform hover:scale-105">
+                                                    <img src={logo} alt="Parceiro" className="h-full w-auto object-contain drop-shadow-sm mix-blend-multiply" />
                                                 </div>
                                             ))}
                                         </div>
@@ -755,7 +755,7 @@
         }
 
         function AdminPanel({ letters, onAddLetter, onUpdateLetter, onDeleteLetter, leads, settings, onSaveSettings, onLogout }) {
-            const [activeTab, setActiveTab] = useState('cartas'); // Mudado padrão para iniciar em Cartas
+            const [activeTab, setActiveTab] = useState('cartas'); 
             return (
                 <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
                     <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10">
@@ -787,30 +787,59 @@
             const [sendingMsg, setSendingMsg] = useState(null);
 
             const sendEvolutionMessage = async (lead) => {
-                if (!settings.evolutionInstance) {
-                    alert("Atenção! Vá em 'Site & Config.' e preencha o campo 'Nome da Instância' no Evolution API para poder disparar mensagens.");
+                if (!settings.evolutionInstance || !settings.evolutionApiKey || !settings.evolutionApiUrl) {
+                    alert("Atenção! Vá em 'Site & Config.' e preencha a URL, a Chave e o Nome da Instância da sua Evolution API.");
                     return;
                 }
+                
                 setSendingMsg(lead.id);
                 try {
-                    const url = `${settings.evolutionApiUrl}/message/sendText/${settings.evolutionInstance}`;
+                    // Garantir que o número comece com o DDI (55) caso o cliente esqueça
+                    let phoneNum = (lead.phone || '').replace(/\D/g, '');
+                    if (phoneNum.length === 10 || phoneNum.length === 11) { phoneNum = '55' + phoneNum; }
+
+                    const baseUrl = settings.evolutionApiUrl.trim().replace(/\/$/, '');
+                    const apiKey = settings.evolutionApiKey.trim();
+                    const url = `${baseUrl}/message/sendText/${settings.evolutionInstance.trim()}`;
+                    
                     const valorInteresse = lead.type === 'Funil' ? lead.desiredCredit : lead.interestedCredit;
-                    let textMessage = settings.evolutionMessage
-                        .replace('{nome}', lead.name.split(' ')[0])
+                    let textMessage = (settings.evolutionMessage || '')
+                        .replace('{nome}', (lead.name || '').split(' ')[0])
                         .replace('{credito}', formatCurrency(valorInteresse));
+
+                    // Payload dinâmico (Atende V1 e V2 da Evolution)
+                    const payload = {
+                        number: phoneNum,
+                        text: textMessage, // Formato V2
+                        options: { delay: 1200, presence: "composing" },
+                        textMessage: { text: textMessage } // Formato V1
+                    };
 
                     const response = await fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'apikey': settings.evolutionApiKey },
-                        body: JSON.stringify({
-                            number: lead.phone.replace(/\D/g, ''),
-                            options: { delay: 1200, presence: "composing" },
-                            textMessage: { text: textMessage }
-                        })
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'apikey': apiKey,
+                            'Authorization': `Bearer ${apiKey}` 
+                        },
+                        body: JSON.stringify(payload)
                     });
-                    if (response.ok) alert(`Mensagem enviada com sucesso para ${lead.name}!`);
-                    else { const err = await response.json(); alert("Falha ao enviar: " + (err.response?.message || "Verifique as configurações e a instância da API.")); }
-                } catch (error) { console.error("Erro Evolution:", error); alert("Erro de conexão com a API Evolution."); }
+                    
+                    if (response.ok) {
+                        alert(`Mensagem disparada com sucesso para ${lead.name}!`);
+                    } else { 
+                        const errText = await response.text();
+                        try {
+                            const err = JSON.parse(errText);
+                            alert("A API rejeitou o disparo.\nMotivo: " + (err.response?.message || err.message || JSON.stringify(err)));
+                        } catch(e) {
+                            alert("A API rejeitou o disparo.\nResposta do servidor: " + errText);
+                        }
+                    }
+                } catch (error) { 
+                    console.error("Erro Evolution:", error); 
+                    alert(`O navegador não conseguiu conectar com a sua API Evolution.\n\nVerifique:\n1. A URL da API tem HTTPS?\n2. O seu servidor Evolution possui bloqueio de segurança CORS?\n\nDetalhe técnico: ${error.message}`); 
+                }
                 setSendingMsg(null);
             };
 
@@ -836,6 +865,48 @@
                                         <td className="px-6 py-5 text-xs text-slate-500">
                                             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold mb-2 ${lead.type === 'Funil' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
                                                 {lead.type === 'Funil' ? <i className="ph ph-sliders-horizontal"></i> : <i className="ph ph-list-bullets"></i>} {lead.type}
+                                            </span><br/>
+                                            {new Date(lead.timestamp).toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <p className="font-bold text-slate-900 text-base">{lead.name}</p>
+                                            <a href={`https://wa.me/55${lead.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 mt-1 font-bold"><i className="ph ph-whatsapp-logo text-lg"></i> {lead.phone}</a>
+                                        </td>
+                                        <td className="px-6 py-5 text-sm text-slate-700">
+                                            <div className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm">
+                                                {lead.type === 'Funil' ? 
+                                                    <>
+                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Desejado</p>
+                                                        <p className="font-black text-slate-900">{formatCurrency(lead.desiredCredit)}</p>
+                                                        <p className="text-xs font-bold text-rf-red mt-1">Parcela: {formatCurrency(lead.desiredInstallment)}</p>
+                                                    </> 
+                                                    : 
+                                                    <>
+                                                        <p className="text-xs text-slate-500 uppercase font-bold mb-1">Código {lead.letterId}</p>
+                                                        <p className="font-black text-slate-900">{formatCurrency(lead.interestedCredit)}</p>
+                                                    </>
+                                                }
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5 text-right align-middle">
+                                            <button 
+                                                onClick={() => sendEvolutionMessage(lead)}
+                                                disabled={sendingMsg === lead.id}
+                                                className="bg-slate-900 hover:bg-rf-red text-white px-4 py-2.5 rounded-lg text-xs font-bold transition-colors shadow-md flex items-center gap-2 ml-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <i className="ph ph-paper-plane-tilt text-base"></i> 
+                                                {sendingMsg === lead.id ? 'Enviando...' : 'Disparar API'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        }
+
         function AdminLetters({ letters, onAdd, onUpdate, onDelete }) {
             const [showForm, setShowForm] = useState(false);
             const [editingId, setEditingId] = useState(null);
@@ -998,6 +1069,7 @@
         function AdminSettings({ settings, onSave }) {
             const [localSet, setLocalSet] = useState(settings);
             const [saved, setSaved] = useState(false);
+            const [testingApi, setTestingApi] = useState(false);
 
             const handleSave = async (e) => {
                 e.preventDefault();
@@ -1007,6 +1079,63 @@
 
             const handleImg = async (e, key) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, [key]: await fileToBase64(f)}); };
             const handlePartner = async (e) => { const f = e.target.files[0]; if(f) setLocalSet({...localSet, partnerLogos: [...localSet.partnerLogos, await fileToBase64(f)]}); };
+
+            const handleTestEvolutionApi = async () => {
+                if (!localSet.evolutionInstance || !localSet.evolutionApiKey || !localSet.evolutionApiUrl) {
+                    alert("Por favor, preencha os 3 campos obrigatórios da API (Nome da Instância, API Key e URL) antes de testar.");
+                    return;
+                }
+
+                const testPhone = prompt("Digite o número do WhatsApp que VAI RECEBER o teste (com DDD, ex: 5511999999999):");
+                if (!testPhone) return;
+
+                setTestingApi(true);
+                try {
+                    // Adiciona o código do país caso tenha sido digitado apenas o DDD
+                    let phoneNum = testPhone.replace(/\D/g, '');
+                    if (phoneNum.length === 10 || phoneNum.length === 11) { phoneNum = '55' + phoneNum; }
+
+                    const baseUrl = localSet.evolutionApiUrl.trim().replace(/\/$/, '');
+                    const apiKey = localSet.evolutionApiKey.trim();
+                    const url = `${baseUrl}/message/sendText/${localSet.evolutionInstance.trim()}`;
+                    
+                    const msgTeste = "✅ Olá! Este é um teste automático do seu Painel RF Consórcio. Sua integração com a Evolution API está funcionando perfeitamente!";
+
+                    // Payload Dinâmico para V1 e V2 da Evolution
+                    const payload = {
+                        number: phoneNum,
+                        text: msgTeste,
+                        options: { delay: 1200, presence: "composing" },
+                        textMessage: { text: msgTeste }
+                    };
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'apikey': apiKey,
+                            'Authorization': `Bearer ${apiKey}` 
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.ok) {
+                        alert("Mensagem de teste disparada com sucesso! Verifique o WhatsApp digitado.");
+                    } else {
+                        const errText = await response.text();
+                        try {
+                            const err = JSON.parse(errText);
+                            alert("A API rejeitou o disparo de teste.\nMotivo: " + (err.response?.message || err.message || JSON.stringify(err)));
+                        } catch (e) {
+                            alert("A API rejeitou o disparo.\nResposta: " + errText);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Erro no teste da Evolution API:", error);
+                    alert(`Erro de conexão com a API.\n\nDetalhe técnico: ${error.message}\n\nIsto geralmente ocorre se:\n1. O link da sua API está incorreto (faltou o https:// ?)\n2. A Evolution API está bloqueando o acesso direto do seu navegador (Erro de CORS).`);
+                }
+                setTestingApi(false);
+            };
 
             return (
                 <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-10">
@@ -1094,9 +1223,22 @@
                                 </div>
                                 <div className="md:col-span-3">
                                     <label className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
-                                        Texto Padrão do Disparo (Variáveis Mágicas: <code className="text-rf-red bg-white px-1 rounded">{'{nome}'}</code>, <code className="text-rf-red bg-white px-1 rounded">{'{credito}'}</code>)
+                                        Texto Padrão do Disparo (Variáveis: <code className="text-rf-red bg-white px-1 border border-slate-200 rounded">{'{nome}'}</code>, <code className="text-rf-red bg-white px-1 border border-slate-200 rounded">{'{credito}'}</code>)
                                     </label>
-                                    <textarea value={localSet.evolutionMessage || ''} onChange={e=>setLocalSet({...localSet, evolutionMessage: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" rows="3"></textarea>
+                                    <textarea value={localSet.evolutionMessage || ''} onChange={e=>setLocalSet({...localSet, evolutionMessage: e.target.value})} className="w-full text-slate-900 font-medium border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" rows="2"></textarea>
+                                </div>
+                                
+                                {/* BOTÃO DE TESTE DA API */}
+                                <div className="md:col-span-3 mt-2 pt-5 border-t border-emerald-200/50 flex justify-end">
+                                    <button 
+                                        type="button" 
+                                        onClick={handleTestEvolutionApi} 
+                                        disabled={testingApi} 
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-lg transition-all shadow-md flex items-center gap-2 text-sm disabled:opacity-50"
+                                    >
+                                        <i className="ph ph-paper-plane-tilt text-lg"></i> 
+                                        {testingApi ? 'Enviando teste...' : 'Enviar Mensagem de Teste'}
+                                    </button>
                                 </div>
                             </div>
                         </div>
