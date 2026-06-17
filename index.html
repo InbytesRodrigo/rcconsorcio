@@ -245,36 +245,42 @@
                 const handleError = (error, context) => {
                     console.error(`Erro ao ler ${context}:`, error);
                     if (error.code === 'permission-denied') {
-                        setFirebaseError("O Firebase está bloqueando o acesso por segurança.\n\nPara funcionar no seu domínio (Netlify), acesse o painel do Firebase > Firestore Database > aba 'Regras' e cole o seguinte código:\n\nmatch /{document=**} {\n  allow read, write: if true;\n}");
+                        setFirebaseError("O Firebase está bloqueando o acesso.\n\nAcesse seu Firebase > Firestore Database > Regras, e cole este código:\n\nrules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    function isAdmin() {\n      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password';\n    }\n    match /artifacts/{appId}/public/data {\n      match /settings/{docId} { allow read: if true; allow write: if isAdmin(); }\n      match /letters/{docId} { allow read: if true; allow write: if isAdmin(); }\n      match /leads/{docId} { allow create: if true; allow read, update, delete: if isAdmin(); }\n    }\n  }\n}");
                     }
                     setLoadingData(false);
                 };
 
-                // 1. Ouvir Configurações
-                const unsubSettings = onSnapshot(settingsRef, (docSnap) => {
+                let unsubSettings = () => {};
+                let unsubLetters = () => {};
+                let unsubLeads = () => {};
+
+                // 1. Ouvir Configurações (Permitido para todos)
+                unsubSettings = onSnapshot(settingsRef, (docSnap) => {
                     if (docSnap.exists()) {
                         setSettings({ ...initialSettings, ...docSnap.data() });
                     } else {
-                        setDoc(settingsRef, initialSettings).catch(e => console.log("Erro ao inicializar settings", e));
+                        setDoc(settingsRef, initialSettings).catch(e => console.log("Aguardando admin para salvar settings"));
                     }
                 }, (error) => handleError(error, 'settings'));
 
-                // 2. Ouvir Cartas
-                const unsubLetters = onSnapshot(lettersRef, (snapshot) => {
+                // 2. Ouvir Cartas (Permitido para todos)
+                unsubLetters = onSnapshot(lettersRef, (snapshot) => {
                     const lettersData = [];
                     snapshot.forEach((doc) => lettersData.push({ id: doc.id, ...doc.data() }));
                     lettersData.sort((a, b) => b.credit - a.credit);
                     setLetters(lettersData);
+                    setLoadingData(false); // Libera a tela para visitantes!
                 }, (error) => handleError(error, 'cartas'));
 
-                // 3. Ouvir Leads
-                const unsubLeads = onSnapshot(leadsRef, (snapshot) => {
-                    const leadsData = [];
-                    snapshot.forEach((doc) => leadsData.push({ id: doc.id, ...doc.data() }));
-                    leadsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    setLeads(leadsData);
-                    setLoadingData(false);
-                }, (error) => handleError(error, 'leads'));
+                // 3. Ouvir Leads (SOMENTE SE LOGADO COMO ADMIN)
+                if (user && !user.isAnonymous) {
+                    unsubLeads = onSnapshot(leadsRef, (snapshot) => {
+                        const leadsData = [];
+                        snapshot.forEach((doc) => leadsData.push({ id: doc.id, ...doc.data() }));
+                        leadsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                        setLeads(leadsData);
+                    }, (error) => console.log("Aguardando permissão de leads...", error));
+                }
 
                 return () => {
                     unsubSettings();
